@@ -1,758 +1,2836 @@
 <!DOCTYPE html>
-
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0" name="viewport"/>
-<meta content="#0f172a" name="theme-color"/>
-<link href="manifest.json" rel="manifest"/>
-<link href="icon.svg" rel="icon" type="image/svg+xml"/>
-<link href="icon-192.png" rel="apple-touch-icon"/>
-<meta name="mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-title" content="PROFIT"/>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<title>PROFIT 3.0</title>
-<link href="css/app.css?v=17" rel="stylesheet"/>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <title>Bolão Brasileirão</title>
 
+  <style>
+    :root {
+      --fundo: #0b1020;
+      --painel: #151e32;
+      --painel2: #1c2940;
+      --texto: #f4f7ff;
+      --suave: #aab6ce;
+      --verde: #39d98a;
+      --azul: #4c8dff;
+      --vermelho: #ff647c;
+      --borda: #2d3b55;
+      --campo: #0d1628;
+      --on: #07160f;
+      --topo: linear-gradient(130deg, #14233b, #12372d);
+    }
 
-<!-- ===== PATCH 1 — CSS DO FILTRO NUTRICIONAL ===== -->
+    [data-tema="claro"] .tag { background: #e2e8f3; }
+    [data-tema="claro"] .aviso { background: #e6eefb; }
+    [data-tema="claro"] .aviso.erro { background: #fde2e7; color: #6b1020; }
+    [data-tema="claro"] .aviso.ok { background: #d9f5e8; color: #0b4a2c; }
 
+    /* sem setinhas nos campos numéricos */
+    input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* chips (rodadas, dias, horários) */
+    .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip {
+      border-radius: 999px !important;
+      flex: none; white-space: nowrap; padding: 9px 14px; border-radius: 999px;
+      background: var(--painel2); color: var(--texto);
+      border: 1px solid var(--borda); font-size: 13px; transition: .15s;
+    }
+    .chip.ativa { background: var(--verde); color: var(--on); border-color: transparent; transform: scale(1.05); }
+
+    /* menu da administração */
+    .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .tile {
+      display: grid; gap: 4px; text-align: left; padding: 16px;
+      background: var(--painel); color: var(--texto);
+      border: 1px solid var(--borda); border-radius: 15px; font-size: 26px;
+    }
+    .tile b { font-size: 15px; }
+    .tile small { color: var(--suave); font-size: 12px; font-weight: 400; }
+    .tile:active { transform: scale(.97); }
+
+    /* aviso de sucesso animado */
+    #toast {
+      position: fixed; left: 50%; bottom: 28px; z-index: 50;
+      transform: translate(-50%, 40px); opacity: 0; pointer-events: none;
+      display: flex; align-items: center; gap: 12px; max-width: 90vw;
+      padding: 12px 18px; border-radius: 14px; white-space: pre-wrap;
+      background: var(--painel2); color: var(--texto); border: 1px solid var(--verde);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35); transition: .3s;
+    }
+    #toast.mostrar { opacity: 1; transform: translate(-50%, 0); }
+    .check { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--verde); display: grid; place-items: center; }
+    .check svg { width: 16px; height: 16px; fill: none; stroke: var(--on); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 24; stroke-dashoffset: 24; }
+    #toast.mostrar .check { animation: pop .4s ease; }
+    #toast.mostrar .check svg { animation: tracar .45s .15s ease forwards; }
+    @keyframes tracar { to { stroke-dashoffset: 0; } }
+    @keyframes pop { 0% { transform: scale(.3); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
+    .jogo.salvoOk { animation: pulsar .9s ease; }
+    @keyframes pulsar { 0% { box-shadow: 0 0 0 0 var(--verde); } 100% { box-shadow: 0 0 0 16px transparent; } }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--fundo);
+      color: var(--texto);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      background: var(--verde);
+      color: var(--on);
+      font-weight: 800;
+      transition: transform .12s ease;
+    }
+    button:active { transform: translateY(1px) scale(.99); }
+
+    button:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border: 1px solid var(--borda);
+      border-radius: 9px;
+      color: var(--texto);
+      background: var(--campo);
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--azul);
+    }
+
+    label {
+      display: block;
+      margin: 12px 0;
+      color: var(--suave);
+      font-size: 13px;
+    }
+
+    h1, h2, h3 { margin-top: 0; }
+
+    h1 { font-size: 25px; }
+    h2 { font-size: 20px; }
+    h3 { font-size: 16px; }
+
+    .topo {
+      padding: 22px 16px;
+      background: var(--topo);
+      border-bottom: 1px solid var(--borda);
+    }
+
+    .topoInterno, .conteudo {
+      max-width: 1100px;
+      margin: auto;
+    }
+
+    .topoInterno {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .marca {
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: var(--verde);
+    }
+
+    .subtitulo {
+      color: var(--suave);
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    .conteudo { padding: 18px 14px 50px; }
+
+    .card {
+      background: var(--painel);
+      border: 1px solid var(--borda);
+      border-radius: 18px;
+      padding: 17px;
+      margin-bottom: 16px;
+      min-width: 0;
+    }
+
+    .loginBox {
+      max-width: 440px;
+      margin: 35px auto;
+    }
+
+    .botoes {
+      display: flex;
+      gap: 9px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .secundario {
+      background: var(--painel2);
+      color: var(--texto);
+      border: 1px solid var(--borda);
+    }
+
+    .perigo {
+      background: var(--vermelho);
+      color: #260710;
+    }
+
+    .pequeno { padding: 8px 10px; font-size: 12px; }
+
+    .grade {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .abas {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      scrollbar-width: none;
+    }
+    .abas::-webkit-scrollbar { display: none; }
+
+    .abaBotao {
+      white-space: nowrap;
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: 13px;
+      line-height: 1.2;
+      background: var(--painel2);
+      color: var(--texto);
+      border: 1px solid var(--borda);
+    }
+
+    .abaBotao.ativa {
+      background: var(--verde);
+      color: var(--on);
+      border-color: transparent;
+    }
+
+    .jogo {
+      background: var(--painel2);
+      border: 1px solid var(--borda);
+      padding: 14px;
+      border-radius: 16px;
+      margin: 12px 0;
+    }
+
+    .jogoTopo {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      color: var(--suave);
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+
+    .confronto {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+    }
+
+    .time {
+      text-align: center;
+      overflow-wrap: anywhere;
+      font-weight: 800;
+    }
+
+    .escudo {
+      display: block;
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      margin: 0 auto 6px;
+    }
+
+    .sigla {
+      display: block;
+      color: var(--verde);
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+
+    .placar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .placar input {
+      width: 52px;
+      padding: 10px 4px;
+      text-align: center;
+      font-weight: 900;
+      font-size: 18px;
+    }
+
+    .placarResultado {
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .linha {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--borda);
+    }
+
+    .linha:last-child { border-bottom: 0; }
+
+    .muted { color: var(--suave); font-size: 13px; }
+    .verde { color: var(--verde); }
+    .oculto { display: none !important; }
+
+    /* carregando: skeleton que pulsa no formato da tela */
+    #carregandoBola {
+      position: fixed; inset: 0; z-index: 60; display: none;
+      background: var(--fundo); overflow: hidden; padding: 18px 14px;
+    }
+    #carregandoBola.ativo { display: block; }
+    .skelWrap { max-width: 760px; margin: 0 auto; }
+    .skel {
+      border-radius: 12px;
+      background: linear-gradient(90deg, var(--painel2) 25%, var(--borda) 37%, var(--painel2) 63%);
+      background-size: 400% 100%;
+      animation: brilho 1.4s ease infinite;
+    }
+    .skelCabeca { height: 46px; width: 58%; margin: 6px 0 14px; }
+    .skelChips { display: flex; gap: 8px; margin-bottom: 14px; }
+    .skelChips .skel { height: 34px; width: 96px; border-radius: 999px; }
+    .skelCard { height: 150px; border-radius: 15px; margin: 14px 0; }
+    @keyframes brilho { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+    @keyframes quicar { from { transform: translateY(-34px); } to { transform: translateY(0); } }
+    @keyframes sombra { from { transform: scale(.5); opacity: .35; } to { transform: scale(1); opacity: .85; } }
+
+    /* contato por WhatsApp */
+    .whats {
+      display: flex; align-items: center; gap: 14px; margin-top: 14px; padding: 14px 16px;
+      border-radius: 15px; background: #25d366; color: #06210f;
+      text-decoration: none; font-weight: 800;
+    }
+    .whats .ico { font-size: 28px; line-height: 1; }
+    .whats small { display: block; font-weight: 500; opacity: .85; }
+    .whats:active { transform: scale(.98); }
+
+    .aviso {
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      background: #1d3046;
+      color: var(--texto);
+      white-space: pre-wrap;
+    }
+
+    .aviso.erro { background: #451c2b; color: #ffd9e0; }
+    .aviso.ok { background: #123d30; color: #c4ffe3; }
+
+    .tag {
+      display: inline-block;
+      padding: 5px 8px;
+      border-radius: 8px;
+      background: #273650;
+      color: var(--suave);
+      font-size: 11px;
+    }
+
+    .vazio {
+      text-align: center;
+      padding: 25px 10px;
+      color: var(--suave);
+    }
+
+    @media (max-width: 650px) {
+      .grade { grid-template-columns: 1fr; }
+      .topoInterno { align-items: flex-start; }
+      .topoInterno h1 { font-size: 21px; }
+      .confronto { gap: 4px; }
+      .time { font-size: 12px; }
+      .sigla { font-size: 18px; }
+      .card { padding: 13px; }
+    }
+
+    /* palpites em lote, resultados e histórico do admin */
+    .jogo.compacto { padding: 10px 12px; margin: 8px 0; }
+    .jogo.compacto .linha { padding: 0; border: 0; }
+    .jogo.alterado { border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde) inset; }
+    #barraSalvar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+      background: var(--painel); border-top: 1px solid var(--borda);
+    }
+    #barraSalvar button { display: block; width: 100%; max-width: 760px; margin: 0 auto; padding: 14px; font-size: 16px; }
+    body.comBarra { padding-bottom: 86px; }
+    .partida {
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      width: 100%; text-align: left; margin: 0 0 8px; padding: 12px;
+      background: var(--painel2); color: var(--texto); border: 1px solid var(--borda);
+    }
+    .partida.sel { border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde) inset; }
+    .partida .ok { color: var(--verde); font-weight: 800; white-space: nowrap; }
+    .bloco { border: 1px solid var(--borda); border-radius: 12px; margin: 8px 0; background: var(--painel2); }
+    .bloco > summary {
+      cursor: pointer; padding: 12px; font-weight: 700; list-style: none;
+      display: flex; justify-content: space-between; gap: 10px;
+    }
+    .bloco > summary::-webkit-details-marker { display: none; }
+    .bloco .corpo { padding: 0 12px 8px; }
+    .rodTit { color: var(--suave); font-size: 12px; font-weight: 800; margin: 10px 0 2px; text-transform: uppercase; }
+    #formResultado .placarRes { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; }
+    #formResultado .placarRes span { padding-bottom: 14px; font-weight: 900; }
+
+    /* modo print do ranking */
+    .sairPrint { display: none; }
+    body.modoPrint * { visibility: hidden !important; }
+    body.modoPrint #painelRanking, body.modoPrint #painelRanking * { visibility: visible !important; }
+    body.modoPrint #painelRanking { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 16px; background: var(--painel); }
+    body.modoPrint .noPrint { display: none !important; }
+    body.modoPrint .sairPrint { visibility: visible !important; display: block !important; position: fixed; right: 12px; top: 12px; z-index: 999; }
+    .sharePrint { display: none; }
+    body.modoPrint .sharePrint, body.modoPrint .sharePrint * { visibility: visible !important; }
+    body.modoPrint #painelRanking { padding-bottom: 96px; }
+    body.modoPrint .sharePrint { display: flex !important; position: fixed; left: 0; right: 0; bottom: 0; z-index: 999;
+      gap: 8px; justify-content: center; padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+      background: var(--painel); border-top: 1px solid var(--borda); }
+    body.modoPrint .sharePrint button { flex: 1; max-width: 360px; padding: 14px; font-size: 16px; }
+    .linha.podio { border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde) inset; }
+    .medalha { font-size: 20px; margin-right: 4px; }
+    #avisoLembrete { border-color: var(--verde); }
+  </style>
 </head>
+
 <body>
-<div class="app">
-<header class="header">
-<div class="brand">
-<div class="logo">
-            🌱
+  <header class="topo">
+    <div class="topoInterno">
+      <div>
+        <div class="marca">⚽ BOLÃO BRASILEIRÃO</div>
+        <h1 style="margin:8px 0 0">Dispute com sua galera</h1>
+        <div class="subtitulo">Dê seus palpites, some pontos e lidere o ranking.</div>
+      </div>
+      <div id="usuarioTopo" class="muted"></div>
+    </div>
+  </header>
+
+  <main class="conteudo">
+    <div id="mensagem" class="aviso oculto"></div>
+
+    <!-- LOGIN -->
+    <section id="telaLogin" class="loginBox">
+      <div class="card">
+        <h2>Entrar no bolão</h2>
+        <p class="muted">Entre com seu nome e PIN cadastrado.</p>
+
+        <form id="formLogin">
+          <label>Seu nome
+            <input id="loginNome" autocomplete="username" required>
+          </label>
+
+          <label>PIN de acesso
+            <input id="loginPin" type="password" inputmode="numeric"
+              minlength="4" maxlength="8" autocomplete="current-password" required>
+          </label>
+
+          <button type="submit" style="width:100%">Entrar</button>
+        </form>
+
+        <div style="text-align:center;margin:18px 0 8px" class="muted">
+          Ainda não participa?
         </div>
-<div>
-<h1>PROFIT 3.0</h1>
-<p>Seu diário alimentar, um dia de cada vez.</p>
-</div>
-</div>
-<button aria-label="Alternar tema" class="theme-btn" id="temaBtn" title="Alternar tema" type="button">☀️</button>
-</header>
-<main class="content">
-<section class="card" data-screen="perfil" id="perfilCard">
-<div class="card-title">
-        👤 Seu perfil
-    </div>
-<div class="user-row">
-<input class="input" id="nome" placeholder="Como podemos chamar você?" type="text"/>
-<div class="profile-mini" id="perfilMini">
-<div class="profile-mini-main">
-<div class="profile-avatar" id="perfilAvatar">?</div>
-<div>
-<div class="profile-name" id="perfilNomeMini">Usuário PROFIT</div>
-<div class="profile-id" id="perfilIdMini">ID: —</div>
-</div>
-</div>
-<div class="profile-actions">
-<button class="profile-action" id="perfilBtn" type="button">👤 Perfil</button>
-<button class="profile-action danger" id="sairBtn" type="button">Sair</button>
-</div>
-</div>
-</div>
-<div class="profit-profile-details">
-  <div class="card-title" style="margin-top:12px;margin-bottom:6px;">📋 Informações do usuário</div>
-  <div class="profit-form-grid">
-    <label>Sexo<select class="input" id="perfilSexo"><option value="">Selecione</option><option value="m">Masculino</option><option value="f">Feminino</option></select></label>
-    <label>Idade<input class="input" id="perfilIdade" type="number" min="13" max="100" placeholder="Ex.: 30"></label>
-    <label>Altura (cm)<input class="input" id="perfilAltura" type="number" min="100" max="230" placeholder="Ex.: 180"></label>
-    <label>Peso atual (kg)<input class="input" id="perfilPesoAtual" type="number" min="30" max="300" step="0.1" placeholder="Ex.: 80"></label>
-    <label>Peso desejado (kg)<input class="input" id="perfilPesoMeta" type="number" min="30" max="300" step="0.1" placeholder="Ex.: 75"></label>
-    <label>Objetivo<select class="input" id="perfilObjetivo"><option value="emagrecer">Emagrecer</option><option value="manter">Manter</option><option value="ganhar">Ganhar massa/peso</option></select></label>
-  </div>
-  <div class="atividade-row">
-<label class="small-note" style="display:block">Nível de atividade
-<select class="input" id="perfilAtividade">
-<option value="1.2">Sedentário</option>
-<option value="1.375">Leve (1 a 3 treinos/sem)</option>
-<option value="1.55" selected>Moderado (3 a 5 treinos/sem)</option>
-<option value="1.725">Intenso (6 a 7 treinos/sem)</option>
-<option value="1.9">Muito intenso</option>
-</select></label>
-<button class="btn btn-green" id="salvarPerfilDadosBtn" type="button">💾 Salvar</button>
-</div>
-  <div class="small-note" id="perfilDadosStatus"></div>
-<div class="prazo-box" id="prazoBox">
-<div class="card-title" style="margin-bottom:4px">⏱️ Estimativa de prazo</div>
-<label class="small-note" style="display:block">Prazo em meses
-<input class="input" id="perfilPrazoMeses" type="number" min="0.5" max="24" step="0.5" placeholder="Ex.: 3"></label>
-<button class="btn btn-light" id="verificarPrazoBtn" type="button" style="width:100%;margin-top:8px">🔎 Verificar prazo</button>
-<div id="prazoResultado" class="prazo-resultado"></div>
-</div>
-</div>
-<div class="profit-nutrition-box" id="profitNutritionBox">
-  <div class="card-title" style="margin-bottom:6px;">🤖 Recomendação do PROFIT</div>
-  <div class="small-note">Preencha seus dados para o PROFIT estimar calorias, proteína, carboidratos, gordura e água.</div>
-  <div class="profit-recommendation-note">As recomendações usam os dados salvos no seu Perfil. Atualize seu perfil quando seu peso, objetivo ou rotina mudarem.</div>
-<div style="display:none"><div class="profit-form-grid">
-    <label>Sexo<select class="input" id="nutSexo"><option value="">Selecione</option><option value="m">Masculino</option><option value="f">Feminino</option></select></label>
-    <label>Idade<input class="input" id="nutIdade" type="number" min="13" max="100" placeholder="Ex.: 30"></label>
-    <label>Altura (cm)<input class="input" id="nutAltura" type="number" min="100" max="230" placeholder="Ex.: 180"></label>
-    <label>Peso (kg)<input class="input" id="nutPeso" type="number" min="30" max="300" step="0.1" placeholder="Ex.: 80"></label>
-    <label>Atividade<select class="input" id="nutAtividade"><option value="1.2">Sedentário</option><option value="1.375">Levemente ativo</option><option value="1.55" selected>Moderadamente ativo</option><option value="1.725">Muito ativo</option><option value="1.9">Extremamente ativo</option></select></label>
-    <label>Objetivo<select class="input" id="nutObjetivo"><option value="emagrecer">Emagrecer</option><option value="manter" selected>Manter</option><option value="ganhar">Ganhar massa/peso</option></select></label>
-  </div></div>
-  <button class="btn btn-green" id="calcularMetasBtn" type="button">🤖 Atualizar recomendação</button>
-<div class="rec-status" id="recStatus"></div>
-  <div class="profit-target-grid" id="profitTargetGrid"></div>
-  <div class="small-note" id="profitNutritionNote"></div>
-</div>
-<div class="profile-actions" style="margin-top:8px;">
-  <button class="profile-action" id="abrirConfiguracaoBtn" type="button">⚙️ Configuração</button>
-</div>
-</section>
-<div class="card" data-screen="home" id="modoOfflineAviso" style="display:none">
-<div class="card-title">📴 Modo offline</div>
-<div class="small-note">Seus dados ficam só neste aparelho. Para sincronizar, entre com sua conta Google em Configuração > Conta.</div>
-</div>
-<section class="motivation motivation-box" data-screen="home" id="motivacaoCard">
-<div class="motivation-title">
-        💚 UM LEMBRETE PARA VOCÊ
-    </div>
-<div class="motivation-text" id="mensagemMotivacional">
-        Cada pequena escolha conta.
-    </div>
-</section>
-<section class="card" data-screen="home" id="interativoCard">
-<div class="card-title">⚡ Seu progresso</div>
-<div class="kpi-grid">
-<div class="kpi-box">
-<div class="kpi-label">🔥 Sequência</div>
-<div class="kpi-value" id="streakValue">0 dias</div>
-<div class="kpi-sub" id="streakSub">Comece registrando hoje.</div>
-</div>
-<div class="kpi-box">
-<div class="kpi-label">⭐ Nível</div>
-<div class="kpi-value" id="nivelValue">1</div>
-<div class="kpi-sub" id="nivelSub">0 XP</div>
-</div>
-</div>
-<div class="xp-wrap">
-<div class="xp-top"><span id="xpLabel">Progresso do nível</span><span id="xpNumbers">0 / 100 XP</span></div>
-<div class="xp-track"><div class="xp-fill" id="xpFill"></div></div>
-</div>
-</section>
-<section class="card" data-screen="agua" id="aguaCard">
-<div class="water-head">
-<div class="card-title" style="margin-bottom:0;">💧 Água</div>
-<span class="badge" id="waterStatus">0 / 2,0 L</span>
-</div>
-<div class="small-note" style="margin-top:7px;">Acompanhe sua hidratação. A meta fica salva neste dispositivo.</div>
-<div class="water-glasses" id="waterGlasses"></div>
-<div class="water-controls">
-<button class="btn btn-green" id="addWaterBtn" type="button">＋ 250 ml</button>
-<button class="btn btn-light" id="removeWaterBtn" type="button">− 250 ml</button>
-</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-<input class="input" id="waterGoalInput" min="0.5" placeholder="Meta em litros" step="0.1" type="number"/>
-<button class="btn btn-light" id="saveWaterGoalBtn" type="button">🎯 Salvar meta</button>
-</div>
-</section>
-<section class="card" data-screen="perfil" id="configuracaoCard">
-<div class="notif-head">
-<div>
-<div class="card-title" style="margin-bottom:3px;">🔔 Lembretes</div>
-<div class="swipe-settings" id="swipeSettings">
-<label>⬅️ Esquerda
-<select id="swipeLeftSelect">
-<option value="interativoCard">📈 Progresso</option><option value="configuracaoCard">🔔 Configuração</option><option value="conquistasCard">🏆 Conquistas</option><option value="analiseDiaCard">🧠 Análise do dia</option><option value="descubraCard">🥗 Descubra alimentos</option>
-</select>
-</label>
-<label>➡️ Direita
-<select id="swipeRightSelect">
-<option value="descubraCard">🥗 Descubra alimentos</option><option value="analiseDiaCard">🧠 Análise do dia</option><option value="conquistasCard">🏆 Conquistas</option><option value="configuracaoCard">🔔 Configuração</option><option value="interativoCard">📈 Progresso</option>
-</select>
-</label>
-<label>⬆️ Cima
-<select id="swipeUpSelect">
-<option value="conquistasCard">🏆 Conquistas</option><option value="interativoCard">📈 Progresso</option><option value="configuracaoCard">🔔 Configuração</option><option value="analiseDiaCard">🧠 Análise do dia</option><option value="descubraCard">🥗 Descubra alimentos</option>
-</select>
-</label>
-<label>⬇️ Baixo
-<select id="swipeDownSelect">
-<option value="descubraCard">🥗 Descubra alimentos</option><option value="interativoCard">📈 Progresso</option><option value="configuracaoCard">🔔 Configuração</option><option value="conquistasCard">🏆 Conquistas</option><option value="analiseDiaCard">🧠 Análise do dia</option>
-</select>
-</label>
-</div>
-<div class="small-note">Notificações funcionam melhor no PROFIT publicado em HTTPS/PWA.</div>
-</div>
-<span class="badge" id="notifStatus">Desativado</span>
-</div>
-<div class="switch-row">
-<div class="switch-copy">
-<div class="switch-title">Ativar notificações</div>
-<div class="switch-sub">Pede permissão ao navegador e habilita lembretes enquanto suportado.</div>
-</div>
-<label class="switch">
-<input id="notifToggle" type="checkbox"/>
-<span class="slider"></span>
-</label>
-</div>
-<div class="switch-row">
-<div class="switch-copy">
-<div class="switch-title">Lembrete diário</div>
-<div class="switch-sub">Horário para lembrar de registrar sua alimentação.</div>
-</div>
-<input class="select-small" id="notifTime" type="time" value="12:30"/>
-</div>
-<button class="btn btn-light" id="testNotifBtn" style="width:100%;margin-top:9px;" type="button">🔔 Testar notificação</button>
-</section>
-<section class="card" data-screen="home" id="missoesCard">
-<div class="mission-head">
-<div class="card-title" style="margin-bottom:0;">🎯 Missões de hoje</div>
-<span class="badge" id="missionXp">+0 XP</span>
-</div>
-<div id="missionList"></div>
-</section>
-<section class="card" data-screen="home" id="conquistasCard">
-<div class="achievement-head">
-<div class="card-title" style="margin-bottom:0;">🏆 Conquistas</div>
-<span class="badge" id="achievementCount">0 desbloqueadas</span>
-</div>
-<div class="achievement-grid" id="achievementGrid"></div>
-</section>
-<section class="card" data-screen="home" id="analiseDiaCard">
-<div class="card-title">🧠 Análise do dia</div>
-<div class="small-note" id="analiseInteligente">Registre uma refeição para receber uma análise rápida do seu dia.</div>
-</section>
-<section class="card" data-screen="home" id="diaCard">
-<div class="card-title">
-        📊 Seu dia
-    </div>
-<div class="small-note" id="alertaMetas" style="display:none;margin-bottom:8px"></div>
-<div class="summary">
-<div class="summary-item">
-<div class="summary-label">
-                CALORIAS
-            </div>
-<div class="summary-value">
-<span id="totalKcal">0</span>
-<small>kcal</small>
-</div>
-</div>
-<div class="summary-item">
-<div class="summary-label">
-                PROTEÍNA
-            </div>
-<div class="summary-value">
-<span id="totalP">0</span>
-<small>g</small>
-</div>
-<div class="mbar"><span id="barP"></span></div>
-</div>
-<div class="summary-item">
-<div class="summary-label">
-                CARBOIDRATOS
-            </div>
-<div class="summary-value">
-<span id="totalC">0</span>
-<small>g</small>
-</div>
-<div class="mbar"><span id="barC"></span></div>
-</div>
-<div class="summary-item">
-<div class="summary-label">
-                GORDURAS
-            </div>
-<div class="summary-value">
-<span id="totalG">0</span>
-<small>g</small>
-</div>
-<div class="mbar"><span id="barG"></span></div>
-</div>
-</div>
-</section>
-<section class="card" data-screen="alimentacao" id="metaCard">
-<div class="card-title">
-        🎯 Meta diária de calorias
-    </div>
-<div class="small-note">O PROFIT interpreta sua meta de acordo com o objetivo escolhido: perder, ganhar ou manter peso.</div>
-<div class="goal-mode-wrap">
-  <div class="small-note" style="margin-bottom:6px;font-weight:700">Qual é seu objetivo?</div>
-  <div class="goal-mode-buttons" role="group" aria-label="Objetivo de peso">
-    <button type="button" class="goal-mode-btn" data-goal-mode="perder">⬇️ Perder peso</button>
-    <button type="button" class="goal-mode-btn" data-goal-mode="manter">⚖️ Manter</button>
-    <button type="button" class="goal-mode-btn" data-goal-mode="ganhar">⬆️ Ganhar peso</button>
-  </div>
-  <div id="goalModeHelp" class="small-note" style="margin-top:7px">Escolha o objetivo para interpretar corretamente suas calorias.</div>
-</div>
-<div class="goal-row">
-<input class="input" id="meta" min="1" type="number" value="2000"/>
-<div style="font-size:12px;color:var(--muted);">kcal/dia</div>
-</div>
-<button class="btn btn-green" id="salvarMetaKcalBtn" type="button">💾 Salvar meta kcal</button>
-<div class="progress">
-<div class="progress-bar" id="progressBar"></div>
-</div>
-<div class="goal-info">
-<span id="goalUsed">0 kcal consumidas</span>
-<span id="goalRemain">2000 kcal restantes</span>
-</div>
-<div id="goalStatus" class="goal-status" aria-live="polite">Escolha seu objetivo para acompanhar sua meta.</div>
-<div class="profit-goal-badge" id="profitGoalBadge"></div>
-</section>
-<section class="card profit-rewards-card" data-screen="inicio" id="profitRewardsCard">
-  <div class="rewards-head">
-    <div><div class="card-title" style="margin-bottom:3px">🏆 Conquistas PROFIT</div><div class="small-note">Sua evolução vira uma lembrança que você pode compartilhar.</div></div>
-    <div class="rewards-icon">✨</div>
-  </div>
-  <div class="rewards-progress-line"><span id="rewardProgressLabel">0 dias válidos acumulados</span><strong id="rewardNextLabel">Próxima: 1 dia</strong></div>
-  <div class="rewards-track"><div id="rewardProgressFill" class="rewards-track-fill"></div></div>
-  <div class="rewards-milestones" id="rewardMilestones"></div>
-  <div class="rewards-status" id="rewardStatus" aria-live="polite">Registre suas refeições para começar a construir suas conquistas.</div>
-  <button class="btn btn-green" id="rewardOpenBtn" type="button" style="width:100%;margin-top:10px" disabled>🎁 Minhas recompensas</button>
-  <div class="small-note" style="margin-top:8px">Um dia conta com pelo menos 3 alimentos registrados em 2 refeições diferentes e consumo dentro de ±10% da meta. Dados incompletos não significam fracasso: apenas não entram na contagem.</div>
-</section>
-<section class="card" data-screen="evolucao" id="semanaCard">
-<div class="period-title">
-<div class="card-title" style="margin-bottom:0;">📈 Resumo da semana</div>
-<span id="semanaPeriodo"></span>
-</div>
-<div class="analytics-grid">
-<div class="analytics-item">
-<div class="analytics-label">Dias registrados</div>
-<div class="analytics-value" id="semDias">0</div>
-<div class="analytics-sub">de 7 dias</div>
-</div>
-<div class="analytics-item">
-<div class="analytics-label">Média kcal</div>
-<div class="analytics-value" id="semKcal">0</div>
-<div class="analytics-sub">dias registrados</div>
-</div>
-<div class="analytics-item">
-<div class="analytics-label">Proteína média</div>
-<div class="analytics-value" id="semP">0 g</div>
-<div class="analytics-sub">por dia registrado</div>
-</div>
-<div class="analytics-item">
-<div class="analytics-label">Total kcal</div>
-<div class="analytics-value" id="semTotalKcal">0</div>
-<div class="analytics-sub">na semana</div>
-</div>
-</div>
-</section>
-<section class="card" data-screen="evolucao" id="mesCard">
-<div class="period-title">
-<div class="card-title" style="margin-bottom:0;">📅 Resumo do mês</div>
-<span id="mesPeriodo"></span>
-</div>
-<div class="analytics-grid">
-<div class="analytics-item">
-<div class="analytics-label">Dias registrados</div>
-<div class="analytics-value" id="mesDias">0</div>
-<div class="analytics-sub">no mês</div>
-</div>
-<div class="analytics-item">
-<div class="analytics-label">Média kcal</div>
-<div class="analytics-value" id="mesKcal">0</div>
-<div class="analytics-sub">dias registrados</div>
-</div>
-<div class="analytics-item">
-<div class="analytics-label">Proteína média</div>
-<div class="analytics-value" id="mesP">0 g</div>
-<div class="analytics-sub">por dia registrado</div>
-</div>
-<div class="analytics-item">
-<div class="analytics-label">Total kcal</div>
-<div class="analytics-value" id="mesTotalKcal">0</div>
-<div class="analytics-sub">no mês</div>
-</div>
-</div>
-</section>
-<section class="card" data-screen="evolucao" id="pesoCard">
-<div class="card-title">⚖️ Acompanhamento de peso</div>
-<div class="profit-weight-goal" id="profitWeightGoalBox"></div>
-<div style="font-size:11px;color:var(--muted);line-height:1.4;">
-        Registre seu peso na data selecionada. No resumo mensal, o app compara o primeiro e o último registro do mês.
-    </div>
-<div class="weight-box">
-<div style="font-size:10px;color:var(--muted);margin-bottom:7px;">
-            Peso na data selecionada
-        </div>
-<div class="weight-row">
-<input class="input" id="peso" min="1" placeholder="Ex.: 80,5" step="0.1" type="number"/>
-<button class="btn btn-green" id="salvarPesoBtn" type="button">Salvar</button>
-</div>
-<div class="weight-history" id="pesoStatus"></div>
-</div>
-<div class="analytics-grid" style="margin-top:9px;">
-<div class="analytics-item">
-<div class="analytics-label">Primeiro peso</div>
-<div class="analytics-value" id="pesoInicial">—</div>
-<div class="analytics-sub" id="pesoInicialData">no mês</div>
-</div>
-<div class="analytics-item">
-<div class="analytics-label">Último peso</div>
-<div class="analytics-value" id="pesoFinal">—</div>
-<div class="analytics-sub" id="pesoFinalData">no mês</div>
-</div>
-<div class="analytics-item" style="grid-column:1/-1;">
-<div class="analytics-label">Variação no mês</div>
-<div class="analytics-value" id="pesoVariacao">—</div>
-<div class="analytics-sub" id="pesoMensagem">Registre pelo menos dois pesos no mês.</div>
-</div>
-</div>
-</section>
-<section class="card" data-screen="evolucao" id="medidasCard">
-<div class="card-title">📏 Evolução corporal</div>
-<div class="small-note">Registre suas medidas periodicamente para comparar sua evolução além da balança.</div>
-<div class="profit-measure-grid">
-  <label>Peso (kg)<input class="input" id="medPeso" type="number" min="1" step="0.1" placeholder="80,0"></label>
-  <label>Cintura (cm)<input class="input" id="medCintura" type="number" min="1" step="0.1"></label>
-  <label>Abdômen (cm)<input class="input" id="medAbdomen" type="number" min="1" step="0.1"></label>
-  <label>Peito (cm)<input class="input" id="medPeito" type="number" min="1" step="0.1"></label>
-  <label>Braço D (cm)<input class="input" id="medBracoD" type="number" min="1" step="0.1"></label>
-  <label>Braço E (cm)<input class="input" id="medBracoE" type="number" min="1" step="0.1"></label>
-  <label>Quadril (cm)<input class="input" id="medQuadril" type="number" min="1" step="0.1"></label>
-  <label>Coxa D (cm)<input class="input" id="medCoxaD" type="number" min="1" step="0.1"></label>
-  <label>Coxa E (cm)<input class="input" id="medCoxaE" type="number" min="1" step="0.1"></label>
-  <label>Panturrilha D (cm)<input class="input" id="medPantD" type="number" min="1" step="0.1"></label>
-  <label>Panturrilha E (cm)<input class="input" id="medPantE" type="number" min="1" step="0.1"></label>
-</div>
-<button class="btn btn-green" id="salvarMedidasBtn" type="button">📏 Salvar medidas de hoje</button>
-<div class="profit-measure-status" id="medidasStatus"></div>
-<div class="profit-measure-history" id="medidasHistorico"></div>
-</section>
-<section class="card" data-screen="alimentacao" id="descubraCard">
-<div class="date-row" style="margin-bottom:10px;">
-<input class="input" id="data" type="date"/>
-<button class="btn btn-dark" id="hojeBtn" type="button">HOJE</button>
-</div>
-<div class="add-food-header">
-<div class="card-title">🍽️ Descubra alimentos</div>
-<button class="btn-add-base" id="abrirAdicionarAlimentoBtn" type="button">＋ Adicionar alimento</button>
-</div>
-<input class="input search" id="busca" placeholder="🔎 Procurar alimento..." type="text"/>
-<!-- ===== PATCH 2 — SELETOR DE NUTRIENTE / NÍVEIS ===== -->
-<div class="nf-box" id="nfBox">
-  <div class="nf-chips" role="group" aria-label="Nutriente do filtro">
-    <button type="button" class="nf-chip active" data-nf="kcal">🔥 Calorias</button>
-    <button type="button" class="nf-chip" data-nf="p">🥩 Proteína</button>
-    <button type="button" class="nf-chip" data-nf="c">🍚 Carbo</button>
-    <button type="button" class="nf-chip" data-nf="g">🥑 Gordura</button>
-  </div>
-  <div id="nfMacro" style="display:none">
-    <div class="nf-levels" id="nfLevels"></div>
-    <div class="nf-foot">
-      <span id="nfInfo"></span>
-      <button type="button" class="nf-clear" id="nfClear">✕ Limpar filtro</button>
-    </div>
-  </div>
-</div>
-<div class="levels">
-<button class="level active" data-level="Todos" type="button">
-<strong>✨</strong>
-            TODOS
-            <small>Todos</small>
-</button>
-<button class="level" data-level="1" type="button">
-<strong>🟢</strong>
-            NÍVEL 1
-            <small>até 20 kcal</small>
-</button>
-<button class="level" data-level="2" type="button">
-<strong>🟢</strong>
-            NÍVEL 2
-            <small>21–60 kcal</small>
-</button>
-<button class="level" data-level="3" type="button">
-<strong>🟡</strong>
-            NÍVEL 3
-            <small>61–100 kcal</small>
-</button>
-<button class="level" data-level="4" type="button">
-<strong>🟠</strong>
-            NÍVEL 4
-            <small>101–200 kcal</small>
-</button>
-</div>
-<div style="
-        background:#fee2e2;
-        color:var(--danger-text);
-        border-radius:10px;
-        padding:8px;
-        font-size:10px;
-        margin-bottom:10px;
-        text-align:center;
-        ">
-        🔴 <b>NÍVEL 5</b> — 200+ kcal por 100g
-    </div>
-<div class="food-list" id="foodList"></div>
-<div class="selected" id="selected">
-<div class="selected-name" id="selectedName"></div>
-<div class="selected-info" id="selectedInfo"></div>
-<div class="gram-row">
-<input class="input" id="gramas" min="1" placeholder="Gramas" type="number" value="100"/>
-<select class="meal" id="refeicao">
-<option value="cafe">☀️ Café da manhã</option>
-<option value="lanche_manha">🍎 Lanche da manhã</option>
-<option value="almoco">🍛 Almoço</option>
-<option value="lanche_tarde">🥪 Lanche da tarde</option>
-<option value="jantar">🌙 Jantar</option>
-<option value="lanche_noite">🌜 Lanche da noite</option>
-<option value="outros">🍽️ Outros</option>
-</select>
-</div>
-<div class="preview-kcal" id="previaCalorias"></div>
-<div class="add-row">
-<button class="btn btn-green" id="adicionarBtn" type="button">
-                + Adicionar alimento
+        <button class="secundario" id="abrirCadastro" style="width:100%">
+          Criar minha conta
+        </button>
+      </div>
+
+      <a id="btnWhats" class="whats oculto" target="_blank" rel="noopener">
+        <span class="ico">💬</span>
+        <span>Precisa de ajuda?<small>Fale com a gente no WhatsApp</small></span>
+      </a>
+
+      <!-- CADASTRO COM CONVITE -->
+      <div id="painelCadastro" class="card oculto">
+        <h2>Criar minha conta</h2>
+        <p class="muted" id="txtConvite">
+          Peça o link de convite ao administrador do bolão.
+        </p>
+
+        <form id="formCadastro">
+          <label>Nome que aparecerá no ranking
+            <input id="cadNome" minlength="2" maxlength="60" required>
+          </label>
+
+          <label>Crie um PIN de 4 a 8 números
+            <input id="cadPin" type="password" inputmode="numeric"
+              minlength="4" maxlength="8" required>
+          </label>
+
+          <label>Repita seu PIN
+            <input id="cadPin2" type="password" inputmode="numeric"
+              minlength="4" maxlength="8" required>
+          </label>
+
+          <label id="lblConvite">Código de convite
+            <input id="cadConvite" autocomplete="off" required>
+          </label>
+
+          <div class="botoes">
+            <button type="submit">Criar conta</button>
+            <button type="button" class="secundario" id="cancelarCadastro">
+              Voltar
             </button>
-<button class="btn btn-light" id="cancelarBtn" type="button">
-                Cancelar
-            </button>
-</div>
-</div>
-</section>
-<section class="card" data-screen="alimentacao" id="diarioCard">
-<div class="card-title">
-        📖 Diário alimentar
-    </div>
-<div id="diario"></div>
-</section>
-<section class="card" data-screen="alimentacao" id="acoesDiaCard">
-<div class="actions">
-<button class="btn btn-green" id="salvarBtn" type="button">
-            💾 Salvar dia
-        </button>
-<button class="btn btn-danger" id="limparBtn" type="button">
-            🗑️ Limpar dia
-        </button>
-</div>
-</section>
-<section class="card share-card" data-screen="alimentacao" id="compartilharCard">
-<div class="card-title">
-        📤 Compartilhar resumo
-    </div>
-<div class="share-sub">
-        Gere um resumo simples para enviar a um amigo, guardar em outro app ou colar em uma IA.
-    </div>
-<div class="share-grid">
-<button class="share-mode active" id="resumoDiaBtn" type="button">
-            📅 Resumo do dia
-        </button>
-<button class="share-mode" id="resumoPeriodoBtn" type="button">
-            📊 Resumo por período
-        </button>
-</div>
-<div id="periodoResumoCampos" style="display:none;">
-<div class="share-date-row">
-<div>
-<label class="share-date-label" for="resumoDataInicio">Data inicial</label>
-<input class="input" id="resumoDataInicio" type="date"/>
-</div>
-<div>
-<label class="share-date-label" for="resumoDataFim">Data final</label>
-<input class="input" id="resumoDataFim" type="date"/>
-</div>
-</div>
-</div>
-<div class="share-actions">
-<button class="btn btn-dark" id="gerarResumoBtn" type="button">
-            ✨ Gerar resumo
-        </button>
-<button class="btn btn-green" id="copiarResumoBtn" type="button">
-            📋 Copiar resumo
-        </button>
-</div>
-<button class="btn btn-light" id="compartilharResumoBtn" style="width:100%;margin-top:8px;" type="button">
-        📲 Compartilhar
-    </button>
-<div class="share-preview" id="resumoPreview">
-<div class="share-preview-title">
-            Prévia do resumo
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- APLICATIVO -->
+    <section id="telaApp" class="oculto">
+      <div class="card">
+        <div class="linha">
+          <div>
+            <div class="muted">Bem-vindo(a),</div>
+            <h2 id="nomeUsuario" style="margin:5px 0"></h2>
+            <span id="perfilUsuario" class="tag"></span>
+            <button id="btnStatusAcessos" type="button" class="tag oculto"
+              style="cursor:pointer;border:0;margin-left:6px" title="Ver registro de entradas">👁 Acessos</button>
+          </div>
+          <button id="btnSair" class="secundario pequeno">Sair</button>
         </div>
-<textarea class="share-output" id="resumoOutput" readonly=""></textarea>
-</div>
-<div class="share-note">
-        O resumo usa somente os dados registrados no PROFIT neste dispositivo.
-    </div>
-</section>
-<section class="card" data-screen="evolucao" id="historicoCard">
-<div class="card-title">
-        📅 Histórico
-    </div>
-<button class="btn btn-light" id="histToggle" type="button" style="width:100%;margin-bottom:8px">📅 Ver histórico</button>
-<div class="history" id="historico"></div>
-<button class="btn back-home" id="homeBtn" type="button">
-        ⌂ Voltar ao topo
-    </button>
-</section>
-<section class="card" data-screen="perfil" id="backupCard">
-<div class="card-title">
-        📦 Backup dos dados
-    </div>
-<div class="backup-actions">
-<button class="btn btn-dark" id="exportarBtn" type="button">
-            📤 Exportar dados
-        </button>
-<button class="btn btn-green" id="importarBtn" type="button">
-            📥 Importar dados
-        </button>
-</div>
-<input accept="application/json,.json" id="arquivoImportacao" style="display:none" type="file"/>
-<div class="backup-note">
-        O backup é salvo em formato JSON e pode restaurar os dados do PROFIT neste ou em outro navegador.
-    </div>
-</section>
-<div class="footer">
-    PROFIT 3.0 (v17) • Consistência antes da perfeição 💚
-</div>
-<div aria-label="Atalhos por gesto" class="swipe-shortcut" id="swipeShortcut" role="slider" tabindex="0">
-<div aria-hidden="true" class="swipe-directions">
-<span class="swipe-direction swipe-up" id="swipeUpIcon">⬆️</span>
-<span class="swipe-direction swipe-down" id="swipeDownIcon">⬇️</span>
-<span class="swipe-direction swipe-left" id="swipeLeftIcon">⬅️</span>
-<span class="swipe-direction swipe-right" id="swipeRightIcon">➡️</span>
-</div>
-<span class="swipe-preview" id="swipePreview"></span>
-<span class="swipe-handle" id="swipeHandle">•</span>
-</div>
-</main>
-<nav aria-label="Navegação principal" class="bottom-nav" id="profitBottomNav"><button aria-label="Início" class="bottom-nav-btn active" data-screen="home" type="button"><span class="bottom-nav-icon">⌂</span><span class="bottom-nav-label">Início</span></button><button aria-label="Alimentação" class="bottom-nav-btn" data-screen="alimentacao" type="button"><span class="bottom-nav-icon">🍽️</span><span class="bottom-nav-label">Alimentação</span></button><button aria-label="Água" class="bottom-nav-btn" data-screen="agua" type="button"><span class="bottom-nav-icon">💧</span><span class="bottom-nav-label">Água</span></button><button aria-label="Evolução" class="bottom-nav-btn" data-screen="evolucao" type="button"><span class="bottom-nav-icon">📊</span><span class="bottom-nav-label">Evolução</span></button><button aria-label="Perfil" class="bottom-nav-btn" data-screen="perfil" type="button"><span class="bottom-nav-icon">👤</span><span class="bottom-nav-label">Perfil</span></button></nav></div>
-<div id="loginGate" role="dialog" aria-modal="true" aria-labelledby="gateTitulo" style="display:none">
-<div class="gate-box">
-<div class="gate-logo">🌱</div>
-<div class="gate-title" id="gateTitulo">PROFIT</div>
-<div class="gate-sub">Seu diário alimentar, um dia de cada vez.</div>
-<div class="gate-text" id="gateTexto"></div>
-<div class="gate-opcao">
-<div class="gate-opcao-titulo">🔐 Login conta Google</div>
-<div class="gate-opcao-desc">Seus dados ficam salvos na nuvem e aparecem em outros aparelhos.</div>
-<div class="gate-btn-wrap" id="gateGoogleBtn"></div>
-</div>
-<div class="gate-opcao">
-<div class="gate-opcao-titulo">📴 Modo offline</div>
-<div class="gate-opcao-desc">Os dados ficam só neste aparelho. Você pode entrar com Google depois, em Configuração.</div>
-<button class="btn btn-dark" id="gateOffline" type="button" style="width:100%">Entrar em modo offline</button>
-</div>
-<button class="btn btn-light" id="gateBackup" type="button" style="width:100%;margin-top:12px;display:none">📦 Baixar backup deste aparelho</button>
-</div>
-</div>
-<div class="toast" id="toast"></div>
-<!-- =========================================================
-     MODAL — PERFIL PROFIT
-========================================================= -->
-<div aria-hidden="true" class="modal-backdrop modal-profile" id="perfilModal">
-<div aria-labelledby="perfilModalTitulo" aria-modal="true" class="food-modal" role="dialog">
-<div class="modal-head">
-<div class="card-title" id="perfilModalTitulo" style="margin:0;">👤 Meu perfil</div>
-<button aria-label="Fechar" class="modal-close" id="fecharPerfilModalBtn" type="button">×</button>
-</div>
-<div class="modal-sub">Seu nome fica salvo neste dispositivo e é usado como perfil padrão.</div>
-<input class="input" id="perfilNomeInput" maxlength="60" placeholder="Seu nome" type="text"/>
-<div class="profile-id-big">
-<div class="small-note">Seu identificador local</div>
-<strong id="perfilIdBig">FP-000000</strong>
-</div>
-<div class="profile-modal-note">
-            Este ID é apenas um identificador local do perfil. Ele não cria uma conta online e não sincroniza dados entre aparelhos.
+      </div>
+
+      <div id="muralAvisos"></div>
+      <div id="barraCamp" class="card oculto">
+        <label style="margin:0">Campeonato
+          <select id="seletorCamp"></select>
+        </label>
+      </div>
+
+      <nav class="abas">
+        <button class="abaBotao ativa" data-aba="jogos">⚽ Jogos</button>
+        <button class="abaBotao" data-aba="ranking">🏆 Ranking</button>
+        <button class="abaBotao" data-aba="meus">📝 Palpites</button>
+        <button class="abaBotao" data-aba="p2p">🎮 P2P</button>
+        <button class="abaBotao" data-aba="conta">👤 Conta</button>
+        <button class="abaBotao oculto" id="abaAdmin" data-aba="admin">⚙️ Admin</button>
+      </nav>
+
+      <section id="painelJogos" class="painelAba">
+        <div class="card">
+          <h2>Jogos e palpites</h2>
+          <p class="muted">
+            Você ganha 5 pontos pelo placar exato e 3 por acertar vitória,
+            empate ou derrota. Preencha quantos quiser e salve todos de uma vez.
+          </p>
+          <div id="chipsRodada" class="chips"></div>
+          <select id="filtroRodada" class="oculto">
+            <option value="">Todas as rodadas</option>
+          </select>
+          <div id="avisoLembrete" class="card oculto"></div>
+          <div id="listaJogos"></div>
         </div>
-<div class="modal-actions">
-<button class="btn btn-light" id="sairPerfilModalBtn" type="button">↩ Trocar usuário</button>
-<button class="btn btn-green" id="salvarPerfilBtn" type="button">💾 Salvar perfil</button>
-</div>
-</div>
-</div>
-<!-- =========================================================
-     MODAL — ADICIONAR ALIMENTO À BASE
-========================================================= -->
-<div aria-hidden="true" class="modal-backdrop" id="alimentoModal">
-<div aria-labelledby="modalAlimentoTitulo" aria-modal="true" class="food-modal" role="dialog">
-<div class="modal-head">
-<div class="card-title" id="modalAlimentoTitulo" style="margin:0;">🥗 Novo alimento</div>
-<button aria-label="Fechar" class="modal-close" id="fecharAlimentoModalBtn" type="button">×</button>
-</div>
-<div class="modal-sub">
-            Cadastre seu alimento e ele ficará salvo nesta instalação do PROFIT. A informação nutricional é considerada por <b>100 g</b>.
+      </section>
+
+      <section id="painelRanking" class="painelAba oculto">
+        <div class="card">
+          <h2>🏆 Classificação geral</h2>
+          <p class="muted">Desempate: maior número de placares exatos.</p>
+          <label>Classificação
+            <select id="filtroRankingRodada"><option value="">Geral</option></select>
+          </label>
+          <div class="botoes" style="margin:0 0 8px">
+            <button id="btnCopiarRanking" class="secundario pequeno noPrint">📋 Copiar ranking</button>
+            <button id="btnModoPrint" class="secundario pequeno noPrint">📸 Modo print</button>
+          </div>
+          <div id="listaRanking"></div>
+          <div id="boxHall" class="card oculto" style="margin-top:14px">
+            <div class="linha">
+              <h3 style="margin:0">🏆 Hall da Fama</h3>
+              <span id="tagHall" class="tag oculto">OCULTO PARA MEMBROS</span>
+            </div>
+            <p class="muted" style="margin:10px 0 0">Campeões e vices por campeonato. Em preparação.</p>
+          </div>
         </div>
-<div class="form-grid">
-<input class="input full" id="novoAlimentoNome" maxlength="80" placeholder="Nome do alimento" type="text"/>
-<input class="input" id="novoAlimentoKcal" min="0" placeholder="Calorias (kcal)" step="0.1" type="number"/>
-<input class="input" id="novoAlimentoProteina" min="0" placeholder="Proteína (g)" step="0.1" type="number"/>
-<input class="input" id="novoAlimentoCarbo" min="0" placeholder="Carboidratos (g) — opcional" step="0.1" type="number"/>
-<input class="input" id="novoAlimentoGordura" min="0" placeholder="Gorduras (g) — opcional" step="0.1" type="number"/>
-</div>
-<div class="modal-actions">
-<button class="btn btn-light" id="cancelarNovoAlimentoBtn" type="button">Cancelar</button>
-<button class="btn btn-green" id="salvarNovoAlimentoBtn" type="button">💾 Salvar alimento</button>
-</div>
-</div>
-</div>
-<script src="js/foods.js?v=17"></script>
-<script src="js/nutrition.js?v=17"></script>
-<script src="js/app.js?v=17"></script>
-<script src="js/navigation.js?v=17"></script>
-<div class="profit-config-modal" id="profitConfigModal" aria-hidden="true">
-  <div class="profit-config-backdrop" data-close-config="1"></div>
-  <div class="profit-config-panel" role="dialog" aria-modal="true" aria-label="Configuração do PROFIT">
-    <div class="profit-config-head"><div><div class="card-title" style="margin:0;">⚙️ Configuração</div><div class="small-note">Notificações, lembretes, atalhos, metas e backup.</div></div><button class="btn btn-light" id="fecharConfiguracaoBtn" type="button">✕</button></div>
-    <div class="profit-config-body" id="profitConfigBody">
-<section class="card" id="contaCard">
-<div class="card-title">☁️ Conta e sincronização</div>
-<div id="syncSemConfig" class="small-note" style="display:none">Sincronização na nuvem ainda não configurada. Seus dados ficam salvos neste aparelho.</div>
-<div id="syncDeslogado">
-<div class="small-note">Entre com sua conta Google para não perder seus dados e usar o PROFIT em outros aparelhos.</div>
-<div id="googleBtn" style="margin-top:10px;display:flex;justify-content:center;min-height:44px"></div>
-<div class="small-note" id="syncAviso" style="margin-top:8px"></div>
-</div>
-<div id="syncLogado" style="display:none">
-<div class="profile-mini">
-<div class="profile-mini-main">
-<div class="profile-avatar" id="syncAvatar">?</div>
-<div style="min-width:0"><div class="profile-name" id="syncNome"></div><div class="profile-id" id="syncEmail"></div></div>
-</div>
-</div>
-<div class="small-note" id="syncStatus" style="margin-top:8px"></div>
-<div class="actions" style="margin-top:10px">
-<button class="btn btn-green" id="syncAgoraBtn" type="button">🔄 Sincronizar agora</button>
-<button class="btn btn-light" id="syncSairBtn" type="button">Sair</button>
-</div>
-<button class="btn btn-danger" id="syncExcluirBtn" type="button" style="width:100%;margin-top:8px">🗑️ Excluir minha conta e dados da nuvem</button>
-</div>
-</section>
-</div>
+      </section>
+
+      <section id="painelMeus" class="painelAba oculto">
+        <div class="card">
+          <h2>📝 Meus palpites</h2>
+          <div id="listaMeus"></div>
+        </div>
+      </section>
+
+      <section id="painelConta" class="painelAba oculto">
+        <div class="card">
+          <h2>🎨 Meu tema</h2>
+          <p class="muted">Escolha as cores do seu time do coração.</p>
+          <select id="temaSelect"></select>
+        </div>
+        <div class="card">
+          <h2>Alterar PIN</h2>
+          <form id="formPin">
+            <label>PIN atual
+              <input id="pinAtual" type="password" inputmode="numeric" required>
+            </label>
+            <label>Novo PIN (4 a 8 números)
+              <input id="pinNovo" type="password" inputmode="numeric"
+                minlength="4" maxlength="8" required>
+            </label>
+            <label>Repita o novo PIN
+              <input id="pinNovo2" type="password" inputmode="numeric"
+                minlength="4" maxlength="8" required>
+            </label>
+            <button type="submit">Alterar PIN</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ADMINISTRAÇÃO -->
+      <section id="painelP2p" class="painelAba oculto">
+        <div class="card" style="text-align:center;padding:26px 18px">
+          <svg viewBox="0 0 120 120" width="112" height="112" aria-hidden="true" style="margin:0 auto 6px;display:block">
+            <circle cx="60" cy="60" r="56" fill="var(--painel2)" stroke="var(--borda)" stroke-width="2"/>
+            <path d="M40 30h40v22c0 13-9 23-20 23s-20-10-20-23V30z" fill="var(--verde)"/>
+            <path d="M40 38H30c0 12 6 18 12 19M80 38h10c0 12-6 18-12 19" fill="none" stroke="var(--verde)" stroke-width="5" stroke-linecap="round"/>
+            <rect x="54" y="75" width="12" height="13" fill="var(--verde)"/>
+            <rect x="42" y="88" width="36" height="8" rx="3" fill="var(--verde)"/>
+          </svg>
+          <div class="tag" style="margin-bottom:10px">EM BREVE</div>
+          <h2 style="margin:4px 0">Campeonato P2P</h2>
+          <p class="muted" style="margin:0 auto;max-width:420px">
+            Um campeonato de jogadores, em que cada participante monta um time com times do Brasileirão.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0">Como vai funcionar</h3>
+          <div class="linha" style="padding:8px 0"><span>👥 Grupos de 4 jogadores</span></div>
+          <div class="linha" style="padding:8px 0"><span>⚽ Cada um escolhe seus times do Brasileirão</span></div>
+          <div class="linha" style="padding:8px 0"><span>🙈 Os confrontos ficam ocultos até o bloqueio</span></div>
+          <div class="linha" style="padding:8px 0"><span>🔁 Troca de titular antes de cada fase</span></div>
+          <div class="linha" style="padding:8px 0"><span>🥊 Repescagem entre os eliminados</span></div>
+        </div>
+
+        <div class="card" style="text-align:center">
+          <div class="muted">Mais detalhes em breve.</div>
+        </div>
+      </section>
+
+      <section id="painelAdmin" class="painelAba oculto">
+        <div class="card">
+          <h2>⚙️ Administração</h2>
+          <p class="muted">
+            Escolha uma opção.
+          </p>
+        </div>
+
+        <div id="admMenu" class="tiles">
+          <button class="tile" data-adm="jogos">⚽<b>Jogos</b><small>cadastrar, editar, excluir</small></button>
+          <button class="tile" data-adm="resultados">🏁<b>Resultados</b><small>lançar placar</small></button>
+          <button class="tile" data-adm="times">🛡️<b>Times</b><small>adicionar e editar</small></button>
+          <button class="tile" data-adm="participantes">👥<b>Participantes</b><small>contas e palpites</small></button>
+          <button class="tile" data-adm="pagamentos">💰<b>Pagamentos</b><small>controle da entrada</small></button>
+          <button class="tile" data-adm="avisos">📢<b>Avisos</b><small>mural para todos</small></button>
+          <button class="tile" data-adm="config">⚙️<b>Configurações</b><small>campeonatos e prazo</small></button>
+        </div>
+
+        <div id="admVoltar" class="oculto" style="margin-bottom:14px;display:flex;align-items:center;gap:12px">
+          <button class="secundario pequeno" id="btnAdmVoltar">← Menu</button>
+          <strong id="admTitulo"></strong>
+        </div>
+
+        <div class="grade">
+          <div class="card">
+            <h3>Adicionar time</h3>
+            <form id="formTime">
+              <label>Nome do time
+                <input id="timeNome" required>
+              </label>
+              <label>Sigla (ex.: BAH)
+                <input id="timeSigla" maxlength="5" required>
+              </label>
+              <label>URL do escudo (opcional)
+                <input id="timeEscudo" type="url" placeholder="https://...">
+              </label>
+              <button type="submit">Cadastrar time</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <h3>Cadastrar jogo</h3>
+            <form id="formJogo">
+              <label>Campeonato
+                <select id="jogoCamp" required></select>
+              </label>
+              <label>Rodada
+                <input id="jogoRodada" type="number" min="1" required>
+              </label>
+              <label>Mandante
+                <select id="jogoMandante" required></select>
+              </label>
+              <label>Visitante
+                <select id="jogoVisitante" required></select>
+              </label>
+              <div style="margin:12px 0"><div class="muted" style="margin-bottom:6px;font-size:13px">Data e hora (horário de Brasília)</div><input id="jogoData" type="hidden"><div class="dtp" data-alvo="jogoData"></div></div>
+              <button type="submit">Cadastrar jogo</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Campeonatos e configurações</h3>
+          <form id="formCamp">
+            <label>Novo campeonato
+              <input id="campNome" placeholder="Ex.: Copa do Brasil 2026" required>
+            </label>
+            <button type="submit">Criar campeonato</button>
+          </form>
+          <div style="margin:6px 0 18px">
+            <div class="muted">Hall da Fama (aparece na aba Ranking para os membros)</div>
+            <button type="button" id="btnHallAtivo" class="secundario pequeno" style="margin-top:6px">Ativar Hall da Fama</button>
+          </div>
+          <div id="boxConvite" style="margin:6px 0 18px">
+            <div class="muted">Link de convite (já leva o código, ninguém precisa digitar)</div>
+            <input id="linkConvite" readonly style="margin-bottom:8px">
+            <div class="botoes" style="margin-top:0">
+              <button type="button" class="pequeno" id="btnCopiarConvite">Copiar link</button>
+              <button type="button" class="pequeno secundario" id="btnConviteZap">Mensagem pronta (WhatsApp)</button>
+            </div>
+          </div>
+          <form id="formConfig" style="margin-top:18px">
+            <label>Fechar palpites quantos minutos antes do jogo?
+              <input id="cfgPrazo" type="number" min="0" max="180" required>
+            </label>
+            <label>Valor da entrada (R$)
+              <input id="cfgValor" type="number" min="0" step="0.01" required>
+            </label>
+            <button type="submit">Salvar configurações</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Rodadas e partidas</h3>
+          <p class="muted">Escolha o campeonato e a rodada, depois toque em um jogo para editar.</p>
+          <label>Campeonato
+            <select id="rodCamp"></select>
+          </label>
+          <div id="rodChips" class="chips" style="margin:10px 0"></div>
+          <div id="rodLista"></div>
+          <div class="botoes">
+            <button type="button" id="btnRodNovo" class="secundario pequeno">+ Novo jogo nesta rodada</button>
+            <button type="button" id="btnRodApagar" class="perigo pequeno">Apagar rodada inteira</button>
+          </div>
+          <form id="formRodada" class="oculto" style="margin-top:14px;border-top:1px solid var(--borda);padding-top:12px">
+            <div id="rodTitulo" style="font-weight:800;margin-bottom:8px"></div>
+            <label>Rodada
+              <input id="rodRodada" type="number" min="1" required>
+            </label>
+            <label>Mandante
+              <select id="rodMandante" required></select>
+            </label>
+            <label>Visitante
+              <select id="rodVisitante" required></select>
+            </label>
+            <div style="margin:12px 0"><div class="muted" style="margin-bottom:6px;font-size:13px">Data e hora (horário de Brasília)</div><input id="rodData" type="hidden"><div class="dtp" data-alvo="rodData"></div></div>
+            <div id="boxPlacarRod">
+              <div class="grade">
+                <label>Gols do mandante
+                  <input id="rodGM" type="number" min="0" max="30" inputmode="numeric">
+                </label>
+                <label>Gols do visitante
+                  <input id="rodGV" type="number" min="0" max="30" inputmode="numeric">
+                </label>
+              </div>
+              <div class="muted" style="font-size:12px">Deixe vazio se a partida ainda não aconteceu.</div>
+            </div>
+            <div class="botoes">
+              <button type="submit">Salvar</button>
+              <button type="button" id="btnRodReabrir" class="secundario oculto">Reabrir resultado</button>
+              <button type="button" id="btnRodExcluir" class="perigo oculto">Excluir partida</button>
+              <button type="button" id="btnRodCancelar" class="secundario">Cancelar</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Mural de avisos</h3>
+          <form id="formAviso">
+            <label>Novo aviso
+              <textarea id="avisoTexto" rows="3" maxlength="500" required
+                style="width:100%;padding:12px;border:1px solid var(--borda);border-radius:9px;color:var(--texto);background:var(--campo);font:inherit"></textarea>
+            </label>
+            <button type="submit">Publicar aviso</button>
+          </form>
+          <div id="listaAvisosAdmin" style="margin-top:12px"></div>
+        </div>
+
+        <div class="card">
+          <h3>Pagamentos</h3>
+          <div id="resumoPagamento" class="aviso"></div>
+          <form id="formPagLote">
+            <label>Cole os nomes de quem pagou (um por linha)
+              <textarea id="pagLoteTexto" rows="4" required
+                style="width:100%;padding:12px;border:1px solid var(--borda);border-radius:9px;color:var(--texto);background:var(--campo);font:inherit"></textarea>
+            </label>
+            <button type="submit">Marcar como pagos</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Editar time</h3>
+          <form id="formEditarTime">
+            <label>Time
+              <select id="editTimeId" required></select>
+            </label>
+            <label>Nome
+              <input id="editTimeNome" required>
+            </label>
+            <label>Sigla
+              <input id="editTimeSigla" maxlength="5" required>
+            </label>
+            <label>URL do escudo
+              <input id="editTimeEscudo" type="url" placeholder="https://...">
+            </label>
+            <img id="editTimePreview" class="escudo oculto" alt="">
+            <button type="submit">Salvar alterações</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Cadastrar jogos em lote</h3>
+          <p class="muted">Um jogo por linha, no formato:<br>
+            <strong>rodada;MANDANTE;VISITANTE;dd/MM/aaaa HH:mm</strong><br>
+            Exemplo: 12;FLA;PAL;15/11/2026 16:00<br>
+            Use a sigla ou o nome do time.</p>
+          <label>Campeonato
+            <select id="loteCamp"></select>
+          </label>
+          <form id="formLote">
+            <textarea id="loteTexto" rows="6" required
+              style="width:100%;padding:12px;border:1px solid var(--borda);border-radius:9px;color:var(--texto);background:var(--campo);font:inherit"></textarea>
+            <div class="botoes"><button type="submit">Cadastrar jogos</button></div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Registrar resultado</h3>
+          <label id="resCampBox">Campeonato
+            <select id="resCamp"></select>
+          </label>
+          <div class="muted" style="margin:10px 0 4px">Rodada</div>
+          <div id="resRodadas" class="chips"></div>
+          <div class="muted" style="margin:6px 0 8px">Partida</div>
+          <div id="resPartidas"></div>
+          <form id="formResultado" class="oculto">
+            <div id="resTitulo" style="font-weight:800;margin:10px 0 4px"></div>
+            <div class="placarRes">
+              <label style="margin:0"><span id="resNomeM" style="display:block;padding:0;font-weight:400"></span>
+                <input id="resultadoMandante" type="number" inputmode="numeric" min="0" max="30" required>
+              </label>
+              <span>×</span>
+              <label style="margin:0"><span id="resNomeV" style="display:block;padding:0;font-weight:400"></span>
+                <input id="resultadoVisitante" type="number" inputmode="numeric" min="0" max="30" required>
+              </label>
+            </div>
+            <div class="botoes">
+              <button type="submit" id="btnSalvarRes">Salvar resultado</button>
+              <button type="button" id="btnReabrirRes" class="secundario oculto">Reabrir (desfazer)</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Horário de partida</h3>
+          <form id="formHorario">
+            <label>Partida
+              <select id="horarioJogo" required></select>
+            </label>
+            <label>Novo horário
+              <input id="novoHorario" type="datetime-local" required>
+            </label>
+            <button type="submit">Alterar horário</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Quem ainda não palpitou</h3>
+          <p class="muted">Participantes com jogos abertos sem palpite.</p>
+          <div id="listaPendentes"></div>
+        </div>
+
+        <div class="card">
+          <h3>Participantes</h3>
+          <p class="muted">Os participantes criam as próprias contas pelo link de convite. Para excluir de vez, desative primeiro.</p>
+          <div id="listaUsuarios"></div>
+        </div>
+
+        <div class="card">
+          <h3>Palpites registrados</h3>
+          <button type="button" id="btnVerPalpites" class="secundario">📋 Ver palpites de um participante</button>
+          <div id="boxVerPalpites" class="oculto" style="margin-top:12px">
+            <label>Participante
+              <select id="histUsuario"></select>
+            </label>
+            <label>Campeonato
+              <select id="histCamp"></select>
+            </label>
+            <label>Rodada
+              <select id="histRodada"></select>
+            </label>
+            <div id="listaPalpitesAdmin" style="margin-top:10px"></div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="carregandoBola" aria-hidden="true">
+    <div class="skelWrap">
+      <div class="skel skelCabeca"></div>
+      <div class="skelChips"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+      <div class="skel skelCard"></div>
+      <div class="skel skelCard"></div>
+      <div class="skel skelCard" style="height:110px"></div>
+    </div>
   </div>
-</div>
-<div class="profit-measure-modal" id="medidasReminderModal" aria-hidden="true">
-  <div class="profit-config-backdrop" data-close-medidas="1"></div>
-  <div class="profit-measure-prompt" role="dialog" aria-modal="true">
-    <div class="card-title">📏 Hora de atualizar suas medidas</div>
-    <div class="small-note">Já faz um tempo desde seu último registro corporal. Quer atualizar agora?</div>
-    <div class="profit-prompt-actions"><button class="btn btn-green" id="registrarMedidasAgoraBtn" type="button">Registrar agora</button><button class="btn btn-light" id="adiarMedidasBtn" type="button">Lembrar depois</button></div>
+
+  <div id="barraSalvar" class="oculto">
+    <button id="btnSalvarTodos" type="button">Salvar palpites</button>
   </div>
-</div>
 
-<script src="js/engine.js?v=17"></script>
-
-<script src="js/goals.js?v=17"></script>
-<script src="js/estimativa.js?v=17"></script>
-<script src="js/recomendacao.js?v=17"></script>
-<div class="reward-modal" id="profitRewardModal" role="dialog" aria-modal="true" aria-labelledby="rewardModalTitle">
-  <div class="reward-dialog">
-    <div class="reward-dialog-head"><div><h2 id="rewardModalTitle">🎁 Suas conquistas</h2><div class="small-note" id="rewardModalSub">Escolha uma recompensa desbloqueada.</div></div><button class="reward-close" id="rewardCloseBtn" type="button" aria-label="Fechar">×</button></div>
-    <div class="reward-select-row" id="rewardSelectRow"></div>
-    <div class="story-preview-wrap"><canvas id="profitStoryCanvas" width="1080" height="1920" aria-label="Prévia do Story de conquista"></canvas></div>
-    <div class="story-caption" id="rewardStoryCaption">Imagem gerada no próprio aparelho. Você pode trocar a mensagem e o fundo.</div>
-    <button class="btn btn-light reward-message-btn" id="rewardNewMessageBtn" type="button">🔄 Outra mensagem</button>
-    <button class="btn btn-light reward-message-btn" id="rewardNewBackgroundBtn" type="button">🎨 Trocar fundo</button>
-    <div class="story-modal-actions" style="margin-top:10px"><button class="btn btn-green" id="rewardSaveBtn" type="button">⬇️ Salvar imagem</button><button class="btn btn-dark" id="rewardShareBtn" type="button">📲 Compartilhar</button></div>
-    <div class="small-note" style="margin-top:10px">Dica: se o compartilhamento direto não estiver disponível no navegador, use “Salvar imagem” e publique pelo Instagram ou WhatsApp.</div>
+  <button id="btnSairPrint" class="sairPrint pequeno">✕ Sair do print</button>
+  <div id="modalAcessos" class="oculto" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:80;overflow:auto;padding:16px">
+    <div class="card" style="max-width:560px;margin:30px auto">
+      <div class="linha">
+        <h2 style="margin:0">Entradas no app</h2>
+        <button id="btnFecharAcessos" type="button" class="secundario pequeno">Fechar</button>
+      </div>
+      <div id="resumoAcessos" class="muted" style="margin:10px 0"></div>
+      <div id="porNomeAcessos"></div>
+    </div>
   </div>
-</div>
-<script src="js/rewards.js?v=17"></script>
 
-<script src="js/reminders.js?v=17"></script>
+  <div class="sharePrint">
+    <button id="btnCompartilharPrint" type="button" disabled>Preparando imagem...</button>
+    <button id="btnBaixarPrint" type="button" class="secundario" disabled>⬇️ Baixar</button>
+  </div>
 
-<!-- ===== PATCH 5 — CONTROLES DO FILTRO NUTRICIONAL ===== -->
-<script src="js/nutrition-ui.js?v=17"></script>
+  <div id="toast"><span class="check"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span id="toastTexto"></span></div>
 
-<script src="js/config.js?v=17"></script>
-<script src="js/sync.js?v=17"></script>
+  <script>
+    "use strict";
+
+    // Acesso seguro ao sessionStorage (pode ser bloqueado em alguns navegadores)
+    const guardar = {
+      ler() { try { return sessionStorage.getItem("bolaoToken") || ""; } catch (e) { return ""; } },
+      salvar(v) { try { sessionStorage.setItem("bolaoToken", v); } catch (e) {} },
+      apagar() { try { sessionStorage.removeItem("bolaoToken"); } catch (e) {} }
+    };
+
+    const estado = {
+      token: guardar.ler(),
+      usuario: null,
+      dados: null,
+      carregando: false,
+      camp: "",
+      rascunho: {},
+      res: { camp: "", rodada: "", jogoId: "", chave: "" },
+      histInit: null
+    };
+
+    // Link de convite: ...?c=CODIGO
+    const CONVITE_URL = (function () {
+      try { return (new URLSearchParams(location.search).get("c") || "").trim(); }
+      catch (e) { return ""; }
+    })();
+
+    const $ = id => document.getElementById(id);
+
+    let toastTimer;
+    function toast(texto) {
+      const t = $("toast");
+      $("toastTexto").textContent = texto;
+      t.classList.remove("mostrar");
+      void t.offsetWidth;
+      t.classList.add("mostrar");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove("mostrar"), 2600);
+    }
+
+    function mostrarMensagem(texto, tipo) {
+      if (tipo === "ok") { limparMensagem(); toast(texto); return; }
+      const el = $("mensagem");
+      el.textContent = texto;
+      el.className = "aviso " + (tipo || "");
+      el.classList.remove("oculto");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function limparMensagem() {
+      $("mensagem").classList.add("oculto");
+    }
+
+    // Cole aqui o link /exec da implantação do Apps Script
+    // (necessário só quando esta página é hospedada fora do Google).
+    const API_URL = "https://script.google.com/macros/s/AKfycbyr2erKiDR70B5QDlmdS2PQ5KQt4g_hFqHhnPdA6ySNxZWewrFkH8dhF4kEZbhXUzl9XA/exec";
+
+    let pendentes = 0, overlayTimer = null, semOverlay = false;
+
+    function chamarServidor(funcao, ...args) {
+      const mostrar = !semOverlay && funcao !== "definirTema";
+      if (mostrar) {
+        pendentes++;
+        if (pendentes === 1) {
+          overlayTimer = setTimeout(
+            () => $("carregandoBola").classList.add("ativo"), 250);
+        }
+      }
+      return chamarServidorBruto(funcao, ...args).finally(() => {
+        if (mostrar && --pendentes === 0) {
+          clearTimeout(overlayTimer);
+          $("carregandoBola").classList.remove("ativo");
+        }
+      });
+    }
+
+    function chamarServidorBruto(funcao, ...args) {
+      // Dentro do Apps Script: usa o método nativo.
+      if (typeof google !== "undefined" && google.script && google.script.run) {
+        return new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(erro => {
+              reject(new Error(erro && erro.message
+                ? erro.message : String(erro)));
+            })[funcao](...args);
+        });
+      }
+
+      // Fora do Google: chama a API do Apps Script.
+      if (!API_URL || API_URL.indexOf("COLE_AQUI") === 0) {
+        return Promise.reject(new Error(
+          "Falta configurar o API_URL no arquivo index.html."));
+      }
+
+      return fetch(API_URL, {
+        method: "POST",
+        // text/plain evita a verificação prévia (preflight) do navegador
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ funcao: funcao, args: args })
+      })
+        .catch(() => {
+          throw new Error("Não foi possível conectar ao servidor. Verifique sua internet.");
+        })
+        .then(r => r.text())
+        .then(texto => {
+          let resp;
+          try { resp = JSON.parse(texto); }
+          catch (e) { throw new Error("Resposta inválida do servidor."); }
+
+          if (!resp.ok) throw new Error(resp.erro || "Erro no servidor.");
+          return resp.dados;
+        });
+    }
+
+    async function executar(funcao, ...args) {
+      limparMensagem();
+
+      try {
+        return await chamarServidor(funcao, ...args);
+      } catch (erro) {
+        mostrarMensagem(erro.message || String(erro), "erro");
+        throw erro;
+      }
+    }
+
+    function alternarLogin(entrar) {
+      $("telaLogin").classList.toggle("oculto", !entrar);
+      $("telaApp").classList.toggle("oculto", entrar);
+      if (entrar) {
+        estado.rascunho = {};
+        estado.res = { camp: "", rodada: "", jogoId: "", chave: "" };
+        estado.histInit = null;
+      }
+      atualizarBarra();
+    }
+
+    function abrirCadastro() {
+      $("painelCadastro").classList.remove("oculto");
+      $("formCadastro").reset();
+      if (CONVITE_URL) {
+        $("cadConvite").value = CONVITE_URL;
+        $("lblConvite").classList.add("oculto");
+        $("txtConvite").textContent = "Convite reconhecido. Escolha seu nome e um PIN.";
+      }
+      $("cadNome").focus();
+    }
+
+    function fecharCadastro() {
+      $("painelCadastro").classList.add("oculto");
+    }
+
+    async function entrar(nome, pin) {
+      const resposta = await executar("login", nome, pin);
+      estado.token = resposta.token;
+      estado.usuario = resposta.usuario;
+      guardar.salvar(estado.token);
+      await carregar();
+    }
+
+    async function carregar() {
+      if (!estado.token) return;
+
+      try {
+        const dados = await chamarServidor("carregarDados", estado.token);
+        estado.dados = dados;
+        estado.usuario = dados.usuario;
+        desenharAplicativo();
+        alternarLogin(false);
+      } catch (erro) {
+        guardar.apagar();
+        estado.token = "";
+        estado.usuario = null;
+        alternarLogin(true);
+        mostrarMensagem(erro.message || String(erro), "erro");
+      }
+    }
+
+    async function atualizarDadosSemBloqueio() {
+      const dados = await chamarServidor("carregarDados", estado.token);
+      estado.dados = dados;
+      estado.usuario = dados.usuario;
+      desenharAplicativo();
+      return dados;
+    }
+
+    async function acao(funcao, ...args) {
+      try {
+        await executar(funcao, estado.token, ...args);
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Operação concluída com sucesso.", "ok");
+      } catch (erro) {
+        // A mensagem já é mostrada por executar().
+      }
+    }
+
+    function textoSeguro(valor) {
+      return String(valor == null ? "" : valor)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function desenharAplicativo() {
+      ultimoCarregamento = Date.now();
+      const d = estado.dados;
+      if (!d) return;
+
+      $("usuarioTopo").textContent = d.usuario.nome;
+      $("nomeUsuario").textContent = d.usuario.nome;
+      $("perfilUsuario").textContent =
+        d.usuario.perfil === "ADMIN" ? "ADMINISTRADOR" : "PARTICIPANTE";
+      const ehAdm = d.usuario.perfil === "ADMIN";
+      $("btnStatusAcessos").classList.toggle("oculto", !ehAdm);
+      if (ehAdm) atualizarAcessos();
+
+      $("abaAdmin").classList.toggle("oculto",
+        d.usuario.perfil !== "ADMIN");
+
+      prepararCamp();
+      desenharMural();
+      aplicarTemaUsuario();
+      desenharJogos();
+      desenharRanking();
+      desenharMeusPalpites();
+      desenharAdmin();
+    }
+
+    function escudoHtml(url) {
+      url = String(url || "").trim();
+      if (!/^https?:\/\//i.test(url)) return "";
+      return `<img class="escudo" src="${textoSeguro(url)}" alt="" loading="lazy"
+        referrerpolicy="no-referrer" onerror="this.style.display='none'">`;
+    }
+
+    function palpitesDoJogoHtml(j) {
+      const lista = (estado.dados.palpitesJogos || [])
+        .filter(p => String(p.jogoId) === String(j.id));
+      if (!lista.length) return "";
+
+      return `<details style="margin-top:10px">
+        <summary class="muted" style="cursor:pointer">
+          Ver palpites da galera (${lista.length})</summary>` +
+        lista.map(p => `<div class="linha"><span>${textoSeguro(p.nome)}</span>
+          <strong>${p.golsMandante} × ${p.golsVisitante}</strong></div>`).join("") +
+        `</details>`;
+    }
+
+    function desenharJogos() {
+      const d = estado.dados;
+      const filtro = $("filtroRodada").value;
+      const rodadas = [...new Set(jogosAtuais().map(j => j.rodada))]
+        .sort((a, b) => a - b);
+
+      const filtroAtual = filtro;
+      $("filtroRodada").innerHTML =
+        '<option value="">Todas as rodadas</option>' +
+        rodadas.map(r =>
+          `<option value="${r}">Rodada ${r}</option>`
+        ).join("");
+      $("filtroRodada").value = filtroAtual;
+
+      // abre já na primeira rodada que ainda tem jogo aberto
+      if (!estado.rodadaDefinida && rodadas.length) {
+        estado.rodadaDefinida = true;
+        const aberta = jogosAtuais()
+          .filter(j => j.status !== "ENCERRADO" && new Date() < new Date(j.limite))
+          .map(j => j.rodada).sort((a, b) => a - b)[0];
+        $("filtroRodada").value = String(aberta || rodadas[rodadas.length - 1]);
+      }
+      desenharChipsRodada(rodadas);
+
+      const meus = d.meusPalpites || [];
+      let jogos = jogosAtuais().slice().sort((a, b) =>
+        new Date(a.dataHora) - new Date(b.dataHora));
+
+      if ($("filtroRodada").value) jogos = jogos.filter(j => String(j.rodada) === $("filtroRodada").value);
+
+      if (!jogos.length) {
+        $("listaJogos").innerHTML =
+          '<div class="vazio">Nenhuma partida cadastrada ainda.</div>';
+        return;
+      }
+
+      const admin = d.usuario.perfil === "ADMIN";
+      const idsSujos = new Set(sujos().map(x => String(x.jogoId)));
+
+      $("listaJogos").innerHTML = jogos.map(j => {
+        const p = meus.find(x => String(x.jogoId) === String(j.id));
+        const resultado = j.status === "ENCERRADO";
+        const fechado = resultado || new Date() >= new Date(j.limite);
+        const podePalpitar = !fechado && !admin;
+        const q = quando(j);
+
+        // Jogo encerrado: uma linha só (toque em "palpites da galera" para abrir)
+        if (resultado) {
+          let meu = "";
+          if (!admin) {
+            if (p) {
+              const pts = pontosFront(p, j);
+              meu = `você: ${p.golsMandante}×${p.golsVisitante} · ${pts} pt${pts === 1 ? "" : "s"}`;
+            } else {
+              meu = "sem palpite";
+            }
+          }
+          return `
+          <article class="jogo compacto" id="jogo_${j.id}">
+            <div class="linha">
+              <span><strong>${textoSeguro(j.mandanteSigla)}</strong>
+                <strong class="verde">${j.golsMandante} × ${j.golsVisitante}</strong>
+                <strong>${textoSeguro(j.visitanteSigla)}</strong>
+                <span class="muted"> · R${j.rodada}</span></span>
+              ${meu ? `<span class="tag">${textoSeguro(meu)}</span>` : ""}
+            </div>
+            ${palpitesDoJogoHtml(j)}
+          </article>`;
+        }
+
+        const rasc = estado.rascunho[j.id];
+        const vm = rasc ? rasc.m : (p ? p.golsMandante : "");
+        const vv = rasc ? rasc.v : (p ? p.golsVisitante : "");
+
+        return `
+          <article class="jogo ${idsSujos.has(String(j.id)) ? "alterado" : ""}" id="jogo_${j.id}">
+            <div class="jogoTopo">
+              <span>Rodada ${j.rodada}</span>
+              <span>📅 ${q.dia} · ⏰ <strong style="color:var(--texto);font-size:15px">${q.hora}</strong></span>
+            </div>
+            <div class="confronto">
+              <div class="time">
+                ${escudoHtml(j.escudoMandante)}<span class="sigla">${textoSeguro(j.mandanteSigla)}</span>
+                ${textoSeguro(j.mandante)}
+              </div>
+              <div>
+                ${admin
+                  ? `<div class="placarResultado">×</div>`
+                  : `<div class="placar">
+                      <input class="inpPalpite" data-j="${j.id}" data-l="m"
+                        aria-label="Seu palpite para ${textoSeguro(j.mandante)}"
+                        type="number" inputmode="numeric" min="0" max="30"
+                        value="${textoSeguro(vm)}" ${podePalpitar ? "" : "disabled"}>
+                      <span>×</span>
+                      <input class="inpPalpite" data-j="${j.id}" data-l="v"
+                        aria-label="Seu palpite para ${textoSeguro(j.visitante)}"
+                        type="number" inputmode="numeric" min="0" max="30"
+                        value="${textoSeguro(vv)}" ${podePalpitar ? "" : "disabled"}>
+                    </div>`}
+              </div>
+              <div class="time">
+                ${escudoHtml(j.escudoVisitante)}<span class="sigla">${textoSeguro(j.visitanteSigla)}</span>
+                ${textoSeguro(j.visitante)}
+              </div>
+            </div>
+            <div class="linha">
+              <span class="tag">${fechado ? "Palpites fechados" :
+                "Palpites até " + textoSeguro(j.limiteExibicao)}</span>
+              ${p && !rasc ? '<span class="muted">✓ salvo</span>' : ""}
+            </div>
+            ${palpitesDoJogoHtml(j)}
+          </article>`;
+      }).join("");
+
+      atualizarBarra();
+    }
+
+    function pontosFront(p, j) {
+      const pm = Number(p.golsMandante), pv = Number(p.golsVisitante);
+      const rm = Number(j.golsMandante), rv = Number(j.golsVisitante);
+      if (pm === rm && pv === rv) return 5;
+      return Math.sign(pm - pv) === Math.sign(rm - rv) ? 3 : 0;
+    }
+
+    function palpiteSalvo(jogoId) {
+      return ((estado.dados && estado.dados.meusPalpites) || [])
+        .find(x => String(x.jogoId) === String(jogoId));
+    }
+
+    // Palpites digitados que ainda não foram salvos (diferentes do que está salvo).
+    function sujos() {
+      const r = [];
+      Object.keys(estado.rascunho || {}).forEach(id => {
+        const x = estado.rascunho[id];
+        const p = palpiteSalvo(id);
+        const m = String(x.m), v = String(x.v);
+        if (m === "" && v === "") return;
+        if (p && String(p.golsMandante) === m && String(p.golsVisitante) === v) return;
+        r.push({ jogoId: id, m: m, v: v });
+      });
+      return r;
+    }
+
+    // Rascunhos da rodada que está na tela (ou de todas, se nenhuma estiver escolhida).
+    function sujosRodada() {
+      const rod = $("filtroRodada") ? $("filtroRodada").value : "";
+      const todos = sujos();
+      if (!rod) return todos;
+      return todos.filter(x => {
+        const j = estado.dados.jogos.find(g => String(g.id) === String(x.jogoId));
+        return j && String(j.rodada) === String(rod);
+      });
+    }
+
+    // Lembrete para o jogador: jogos abertos sem palpite.
+    function atualizarLembrete() {
+      const box = $("avisoLembrete");
+      if (!box) return;
+      const d = estado.dados;
+      if (!d || !estado.usuario || estado.usuario.perfil === "ADMIN") {
+        box.classList.add("oculto"); return;
+      }
+      const agora = new Date();
+      const feitos = new Set((d.meusPalpites || []).map(p => String(p.jogoId)));
+      const pend = (d.jogos || []).filter(j =>
+        j.status !== "ENCERRADO" && agora < new Date(j.limite) && !feitos.has(String(j.id)));
+      if (!pend.length) { box.classList.add("oculto"); return; }
+
+      pend.sort((a, b) => new Date(a.limite) - new Date(b.limite));
+      const prox = pend[0];
+      box.innerHTML = "⏰ Você tem <strong>" + pend.length + "</strong> jogo(s) sem palpite. " +
+        "Próximo prazo: <strong>" + textoSeguro(prox.limiteExibicao) + "</strong> (" +
+        textoSeguro(prox.mandanteSigla) + " × " + textoSeguro(prox.visitanteSigla) + ").";
+      box.classList.remove("oculto");
+    }
+
+    // Hall da Fama: membros veem só quando o admin ativa; admin sempre vê (com aviso).
+    function atualizarHall() {
+      const d = estado.dados, u = estado.usuario;
+      if (!d || !u || !$("boxHall")) return;
+      const ehAdm = u.perfil === "ADMIN";
+      const ativo = !!(d.config && d.config.hallAtivo);
+      $("boxHall").classList.toggle("oculto", !(ativo || ehAdm));
+      $("tagHall").classList.toggle("oculto", ativo || !ehAdm);
+      const b = $("btnHallAtivo");
+      if (b) b.textContent = ativo ? "Desativar Hall da Fama" : "Ativar Hall da Fama";
+    }
+
+    $("btnHallAtivo") && $("btnHallAtivo").addEventListener("click", async () => {
+      const atual = !!(estado.dados.config && estado.dados.config.hallAtivo);
+      if (!atual && !confirm("Mostrar o Hall da Fama para todos os membros?")) return;
+      try {
+        await executar("definirHallDaFama", estado.token, !atual);
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem(!atual ? "Hall da Fama visível para os membros." : "Hall da Fama oculto.", "ok");
+      } catch (erro) {}
+    });
+
+    function atualizarBarra() {
+      atualizarLembrete();
+      atualizarHall();
+      const n = estado.dados && estado.usuario && estado.usuario.perfil !== "ADMIN"
+        ? sujosRodada().length : 0;
+      const visivel = n > 0 &&
+        !$("painelJogos").classList.contains("oculto") &&
+        !$("telaApp").classList.contains("oculto");
+      $("barraSalvar").classList.toggle("oculto", !visivel);
+      document.body.classList.toggle("comBarra", visivel);
+      const rod = $("filtroRodada") ? $("filtroRodada").value : "";
+      const rotulo = rod ? "da rodada " + rod : "";
+      $("btnSalvarTodos").textContent = (n === 1 ? "Salvar 1 palpite " : "Salvar " + n + " palpites ") + rotulo;
+    }
+
+    $("listaJogos").addEventListener("input", e => {
+      const el = e.target;
+      if (!el.classList || !el.classList.contains("inpPalpite")) return;
+      if (el.value !== "" && Number(el.value) > 30) el.value = "30";
+      if (el.value !== "" && Number(el.value) < 0) el.value = "0";
+      const id = el.dataset.j;
+      const p = palpiteSalvo(id);
+      const r = estado.rascunho[id] ||
+        (estado.rascunho[id] = { m: p ? String(p.golsMandante) : "", v: p ? String(p.golsVisitante) : "" });
+      r[el.dataset.l] = el.value;
+      const card = $("jogo_" + id);
+      if (card) card.classList.toggle("alterado", sujos().some(x => String(x.jogoId) === String(id)));
+      atualizarBarra();
+    });
+
+    async function salvarTodosPalpites() {
+      const lista = sujosRodada();
+      if (!lista.length) return;
+
+      const incompleto = lista.find(x => x.m === "" || x.v === "");
+      if (incompleto) {
+        const j = estado.dados.jogos.find(x => String(x.id) === String(incompleto.jogoId));
+        mostrarMensagem("Preencha os dois placares de " +
+          (j ? j.mandanteSigla + " x " + j.visitanteSigla : "um dos jogos") + ".", "erro");
+        if (j) {
+          $("filtroRodada").value = String(j.rodada);
+          desenharJogos();
+        }
+        return;
+      }
+
+      const btn = $("btnSalvarTodos");
+      btn.disabled = true;
+      try {
+        const r = await executar("salvarPalpitesLote", estado.token,
+          lista.map(x => ({ jogoId: x.jogoId, golsMandante: Number(x.m), golsVisitante: Number(x.v) })));
+
+        const recusados = r.recusados || [];
+        const negados = new Set(recusados.map(x => String(x.jogoId)));
+        const meus = estado.dados.meusPalpites || (estado.dados.meusPalpites = []);
+        const salvosIds = [];
+
+        lista.forEach(x => {
+          if (negados.has(String(x.jogoId))) return;
+          const e = meus.find(p => String(p.jogoId) === String(x.jogoId));
+          if (e) { e.golsMandante = Number(x.m); e.golsVisitante = Number(x.v); }
+          else meus.push({ jogoId: x.jogoId, golsMandante: Number(x.m), golsVisitante: Number(x.v) });
+          delete estado.rascunho[x.jogoId];
+          salvosIds.push(x.jogoId);
+        });
+
+        if (recusados.length) {
+          const nomes = recusados.map(x => {
+            const j = estado.dados.jogos.find(g => String(g.id) === String(x.jogoId));
+            return (j ? j.mandanteSigla + " x " + j.visitanteSigla : "jogo") + " (" + x.motivo.replace(/\.$/, "").toLowerCase() + ")";
+          });
+          recusados.forEach(x => delete estado.rascunho[x.jogoId]);
+          await atualizarDadosSemBloqueio();
+          mostrarMensagem(r.salvos + " palpite(s) salvo(s). Não foram salvos: " + nomes.join(", ") + ".", "");
+        } else {
+          desenharJogos();
+          desenharMeusPalpites();
+          mostrarMensagem(r.salvos === 1 ? "Palpite salvo!" : r.salvos + " palpites salvos!", "ok");
+        }
+
+        salvosIds.forEach(id => {
+          const c = $("jogo_" + id);
+          if (c) { c.classList.add("salvoOk"); setTimeout(() => c.classList.remove("salvoOk"), 1000); }
+        });
+      } catch (erro) {
+        // a mensagem já foi mostrada; os palpites digitados continuam na tela
+      } finally {
+        btn.disabled = false;
+        atualizarBarra();
+      }
+    }
+
+    $("btnSalvarTodos").addEventListener("click", salvarTodosPalpites);
+
+    function pontosCliente(p, j) {
+      const pm = Number(p.golsMandante), pv = Number(p.golsVisitante);
+      const rm = Number(j.golsMandante), rv = Number(j.golsVisitante);
+      if (pm === rm && pv === rv) return 5;
+      return Math.sign(pm - pv) === Math.sign(rm - rv) ? 3 : 0;
+    }
+
+    function rankingRodada(r) {
+      const d = estado.dados;
+      const lista = rankingBase().map(x => ({
+        usuarioId: x.usuarioId, nome: x.nome,
+        pontos: 0, exatos: 0, palpitesFeitos: 0
+      }));
+
+      jogosAtuais().filter(j => j.rodada === r && j.status === "ENCERRADO")
+        .forEach(j => {
+          (d.palpitesJogos || [])
+            .filter(p => String(p.jogoId) === String(j.id))
+            .forEach(p => {
+              const u = lista.find(x => String(x.usuarioId) === String(p.usuarioId));
+              if (!u) return;
+              const pts = pontosCliente(p, j);
+              u.pontos += pts;
+              u.palpitesFeitos++;
+              if (pts === 5) u.exatos++;
+            });
+        });
+
+      lista.sort((a, b) => b.pontos - a.pontos || b.exatos - a.exatos ||
+        a.nome.localeCompare(b.nome));
+      lista.forEach((x, i) => x.posicao = i + 1);
+      return lista;
+    }
+
+    function desenharRanking() {
+      const d = estado.dados;
+      const sel = $("filtroRankingRodada");
+      const atual = sel.value;
+      const rodadasEnc = [...new Set(jogosAtuais()
+        .filter(j => j.status === "ENCERRADO").map(j => j.rodada))]
+        .sort((a, b) => a - b);
+      sel.innerHTML = '<option value="">Geral</option>' +
+        rodadasEnc.map(r => `<option value="${r}">Rodada ${r}</option>`).join("");
+      sel.value = atual;
+
+      const ranking = sel.value
+        ? rankingRodada(Number(sel.value))
+        : rankingBase();
+
+      estado.rankingAtual = ranking;
+      estado.rankingTitulo = nomeCamp(estado.camp) +
+        (sel.value ? " — Rodada " + sel.value : " — Classificação geral");
+
+      if (!ranking.length) {
+        $("listaRanking").innerHTML =
+          '<div class="vazio">Ainda não há participantes.</div>';
+        return;
+      }
+
+      const medalha = p => ["🥇", "🥈", "🥉"][p - 1] || "";
+      $("listaRanking").innerHTML = ranking.map(r => `
+        <div class="linha ${r.posicao <= 3 && r.pontos > 0 ? "podio" : ""}">
+          <div>
+            <strong>${r.posicao <= 3 && r.pontos > 0 ? `<span class="medalha">${medalha(r.posicao)}</span>` : ""}${r.posicao}º — ${textoSeguro(r.nome)}</strong>
+            <div class="muted">${r.exatos} placar(es) exato(s)</div>
+          </div>
+          <div style="text-align:right">
+            <strong class="verde">${r.pontos} pts</strong>
+            <div class="muted">${r.palpitesFeitos} resultados pontuados</div>
+          </div>
+        </div>`).join("");
+    }
+
+    function desenharMeusPalpites() {
+      const d = estado.dados;
+      const meus = d.meusPalpites || [];
+
+      if (!meus.length) {
+        $("listaMeus").innerHTML =
+          '<div class="vazio">Você ainda não salvou palpites.</div>';
+        return;
+      }
+
+      $("listaMeus").innerHTML = meus.map(p => {
+        const j = d.jogos.find(x => String(x.id) === String(p.jogoId));
+        if (!j) return "";
+
+        const resultado = j.status === "ENCERRADO";
+        let pontos = "";
+
+        if (resultado) {
+          const palpite = {
+            golsMandante: Number(p.golsMandante),
+            golsVisitante: Number(p.golsVisitante)
+          };
+          const rm = Number(j.golsMandante);
+          const rv = Number(j.golsVisitante);
+          const exato = palpite.golsMandante === rm &&
+            palpite.golsVisitante === rv;
+          const acertou = Math.sign(palpite.golsMandante -
+            palpite.golsVisitante) === Math.sign(rm - rv);
+
+          pontos = `<div class="muted">${exato ? "5 pontos — placar exato" :
+            acertou ? "3 pontos — resultado correto" :
+            "0 pontos"}</div>`;
+        }
+
+        return `<div class="linha">
+          <div>
+            <strong>${textoSeguro(j.mandante)} × ${textoSeguro(j.visitante)}</strong>
+            <div class="muted">${textoSeguro(j.dataExibicao)}</div>
+            ${pontos}
+          </div>
+          <strong>${p.golsMandante} × ${p.golsVisitante}</strong>
+        </div>`;
+      }).join("");
+    }
+
+    function preencherSelect(id, opcoes, placeholder) {
+      const el = $(id);
+      const anterior = el.value;
+      el.innerHTML = `<option value="">${placeholder}</option>` +
+        opcoes.map(o =>
+          `<option value="${textoSeguro(o.value)}">${textoSeguro(o.texto)}</option>`
+        ).join("");
+
+      if (opcoes.some(o => String(o.value) === anterior)) {
+        el.value = anterior;
+      }
+    }
+
+    function desenharAdmin() {
+      const d = estado.dados;
+      if (d.usuario.perfil !== "ADMIN") return;
+
+      const times = d.times.map(t => ({
+        value: t.id,
+        texto: `${t.sigla} — ${t.nome}`
+      }));
+
+      preencherSelect("jogoMandante", times, "Escolha o mandante");
+      preencherSelect("jogoVisitante", times, "Escolha o visitante");
+      preencherSelect("editTimeId", times, "Escolha o time");
+
+      const camps = (d.campeonatos || []).map(c => ({ value: c.id, texto: c.nome }));
+      ["jogoCamp", "loteCamp"].forEach(id => {
+        preencherSelect(id, camps, "Campeonato");
+        if (!$(id).value) $(id).value = estado.camp;
+      });
+
+      if (document.activeElement !== $("cfgPrazo")) $("cfgPrazo").value = d.config.prazoMin;
+      if (document.activeElement !== $("cfgValor")) $("cfgValor").value = d.config.valorEntrada;
+
+      $("listaAvisosAdmin").innerHTML = (d.avisos || []).map(a => `
+        <div class="linha">
+          <div><div>${textoSeguro(a.texto)}</div>
+            <div class="muted">${textoSeguro(a.data)}</div></div>
+          <button class="perigo pequeno" onclick="apagarAviso('${a.id}')">Apagar</button>
+        </div>`).join("") || '<div class="vazio">Nenhum aviso publicado.</div>';
+
+      const part = d.usuarios.filter(u => u.perfil !== "ADMIN" && u.ativo);
+      const pagos = part.filter(u => u.pagou);
+      const total = pagos.reduce((s, u) => s + Number(u.valorPago || 0), 0);
+      $("resumoPagamento").textContent =
+        `${pagos.length} de ${part.length} pagaram · Arrecadado: R$ ${total.toFixed(2).replace(".", ",")}` +
+        (pagos.length < part.length ? "\nFalta: " + part.filter(u => !u.pagou).map(u => u.nome).join(", ") : "");
+
+      const jogos = d.jogos.map(j => ({
+        value: j.id,
+        texto: `${nomeCamp(j.campeonatoId)} · R${j.rodada}: ${j.mandante} x ${j.visitante} (${j.dataExibicao})`
+      }));
+
+      desenharResultados();
+      desenharRodadasAdm();
+      preencherSelect("horarioJogo", jogos.filter(j => {
+        const jogo = d.jogos.find(x => String(x.id) === String(j.value));
+        return jogo && jogo.status !== "ENCERRADO";
+      }), "Escolha a partida");
+
+      $("listaPendentes").innerHTML = (d.pendentes || []).map(p => `
+        <div class="linha">
+          <strong>${textoSeguro(p.nome)}</strong>
+          <span class="muted">faltam ${p.faltam} jogo(s)</span>
+        </div>`).join("") ||
+        '<div class="vazio">Todo mundo está em dia. 🎉</div>';
+
+      $("listaUsuarios").innerHTML = d.usuarios.map(u => `
+        <div class="linha">
+          <div>
+            <strong>${textoSeguro(u.nome)}</strong>
+            <div class="muted">${textoSeguro(u.perfil)} · ${u.ativo ? "Ativo" : "Inativo"}${u.perfil !== "ADMIN" ? (u.pagou ? " · 💰 Pago" : " · Pendente") : ""}</div>
+          </div>
+          ${u.perfil !== "ADMIN"
+            ? `<div class="botoes" style="margin:0">
+                <button class="secundario pequeno"
+                  onclick="alternarPagamento('${u.id}', ${!u.pagou})">${u.pagou ? "Desmarcar pago" : "Marcar pago"}</button>
+                ${u.ativo
+                  ? `<button class="secundario pequeno"
+                      onclick="redefinirPinTela('${u.id}')">Redefinir PIN</button>
+                     <button class="perigo pequeno"
+                      onclick="desativarUsuario('${u.id}')">Desativar</button>`
+                  : `<button class="pequeno"
+                      onclick="reativarUsuario('${u.id}')">Reativar</button>
+                     <button class="perigo pequeno" data-acao="excluir"
+                      data-id="${u.id}">Excluir</button>`}
+               </div>` : ""}
+        </div>`).join("") || '<div class="vazio">Nenhum participante.</div>';
+
+      desenharPalpitesAdmin();
+
+      const cod = (d.config && d.config.convite) || "";
+      if (document.activeElement !== $("linkConvite")) {
+        $("linkConvite").value = cod ? urlConvite(cod) : "Convite não definido (rode definirCodigoConvite).";
+      }
+    }
+
+    async function redefinirPinTela(id) {
+      const u = (estado.dados.usuarios || []).find(x => String(x.id) === String(id));
+      const pin = prompt("Novo PIN para " + (u ? u.nome : "o participante") +
+        " (4 a 8 números):");
+      if (pin === null) return;
+      await acao("redefinirPin", id, pin.trim());
+    }
+
+    async function desativarUsuario(id) {
+      const u = (estado.dados.usuarios || []).find(x => String(x.id) === String(id));
+      if (!confirm(`Desativar a conta de ${u ? u.nome : "este participante"}?`)) return;
+      await acao("removerUsuario", id);
+    }
+
+    function selecionarAba(nome) {
+      document.querySelectorAll(".painelAba").forEach(p =>
+        p.classList.add("oculto"));
+
+      const painel = $("painel" + nome.charAt(0).toUpperCase() + nome.slice(1));
+      if (painel) painel.classList.remove("oculto");
+      if (nome === "admin") abrirAdm("");
+
+      document.querySelectorAll(".abaBotao").forEach(b =>
+        b.classList.toggle("ativa", b.dataset.aba === nome));
+      atualizarBarra();
+    }
+
+    $("formLogin").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      try {
+        await entrar($("loginNome").value, $("loginPin").value);
+        $("formLogin").reset();
+        mostrarMensagem("Login realizado com sucesso!", "ok");
+      } catch (erro) {}
+    });
+
+    $("abrirCadastro").addEventListener("click", abrirCadastro);
+    $("cancelarCadastro").addEventListener("click", fecharCadastro);
+
+    $("formCadastro").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      const nome = $("cadNome").value.trim();
+      const pin = $("cadPin").value;
+      const pin2 = $("cadPin2").value;
+      const convite = $("cadConvite").value.trim();
+
+      if (pin !== pin2) {
+        mostrarMensagem("Os PINs não são iguais.", "erro");
+        return;
+      }
+
+      try {
+        const resposta = await executar("cadastrarConta", nome, pin, convite);
+        estado.token = resposta.token;
+        estado.usuario = resposta.usuario;
+        guardar.salvar(estado.token);
+        fecharCadastro();
+        $("formCadastro").reset();
+        await carregar();
+        mostrarMensagem("Conta criada! Você já está no bolão.", "ok");
+      } catch (erro) {
+        if (/convite/i.test(erro.message || "")) $("lblConvite").classList.remove("oculto");
+      }
+    });
+
+    $("btnSair").addEventListener("click", async () => {
+      try {
+        await chamarServidor("sair", estado.token);
+      } catch (e) {}
+
+      guardar.apagar();
+      estado.token = "";
+      estado.usuario = null;
+      estado.dados = null;
+      alternarLogin(true);
+      fecharCadastro();
+      limparMensagem();
+    });
+
+    document.querySelectorAll(".abaBotao").forEach(botao => {
+      botao.addEventListener("click", () => selecionarAba(botao.dataset.aba));
+    });
+
+    $("filtroRodada").addEventListener("change", desenharJogos);
+    $("filtroRankingRodada").addEventListener("change", desenharRanking);
+
+    $("formPin").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      if ($("pinNovo").value !== $("pinNovo2").value) {
+        mostrarMensagem("Os novos PINs não são iguais.", "erro");
+        return;
+      }
+
+      try {
+        await executar("alterarPin", estado.token,
+          $("pinAtual").value, $("pinNovo").value);
+        $("formPin").reset();
+        mostrarMensagem("PIN alterado com sucesso.", "ok");
+      } catch (erro) {}
+    });
+
+    function preencherEdicaoTime() {
+      const t = (estado.dados.times || []).find(x =>
+        String(x.id) === $("editTimeId").value);
+
+      $("editTimeNome").value = t ? t.nome : "";
+      $("editTimeSigla").value = t ? t.sigla : "";
+      $("editTimeEscudo").value = t ? (t.escudo || "") : "";
+
+      const prev = $("editTimePreview");
+      if (t && /^https?:\/\//i.test(t.escudo || "")) {
+        prev.src = t.escudo;
+        prev.classList.remove("oculto");
+      } else {
+        prev.classList.add("oculto");
+      }
+    }
+
+    $("editTimeId").addEventListener("change", preencherEdicaoTime);
+
+    $("formEditarTime").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      try {
+        await executar("editarTime", estado.token,
+          $("editTimeId").value, $("editTimeNome").value,
+          $("editTimeSigla").value, $("editTimeEscudo").value);
+        await atualizarDadosSemBloqueio();
+        preencherEdicaoTime();
+        mostrarMensagem("Time atualizado.", "ok");
+      } catch (erro) {}
+    });
+
+    $("formLote").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      try {
+        const r = await executar("cadastrarJogosLote", estado.token,
+          $("loteTexto").value, $("loteCamp").value);
+        $("formLote").reset();
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem(r.total + " jogo(s) cadastrado(s)." +
+          (r.ignorados ? " " + r.ignorados + " já existia(m) e foi(ram) ignorado(s)." : ""), "ok");
+      } catch (erro) {}
+    });
+
+    $("formTime").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      try {
+        await executar("cadastrarTime", estado.token,
+          $("timeNome").value, $("timeSigla").value, $("timeEscudo").value);
+        $("formTime").reset();
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Time cadastrado.", "ok");
+      } catch (erro) {}
+    });
+
+    $("formJogo").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      if ($("jogoMandante").value === $("jogoVisitante").value) {
+        mostrarMensagem("Escolha dois times diferentes.", "erro");
+        return;
+      }
+
+      try {
+        await executar("cadastrarJogo", estado.token,
+          $("jogoRodada").value,
+          $("jogoMandante").value,
+          $("jogoVisitante").value,
+          $("jogoData").value,
+          $("jogoCamp").value);
+        $("formJogo").reset();
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Jogo cadastrado.", "ok");
+      } catch (erro) {}
+    });
+
+    $("formHorario").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      try {
+        await executar("editarHorarioJogo", estado.token,
+          $("horarioJogo").value, $("novoHorario").value);
+        $("formHorario").reset();
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Horário atualizado.", "ok");
+      } catch (erro) {}
+    });
+
+
+    /* ===== Campeonatos ===== */
+    function nomeCamp(id) {
+      const c = (estado.dados.campeonatos || []).find(x => String(x.id) === String(id));
+      return c ? c.nome : "Campeonato";
+    }
+
+    function jogosAtuais() {
+      return estado.dados.jogos.filter(j => String(j.campeonatoId) === String(estado.camp));
+    }
+
+    function rankingBase() {
+      const d = estado.dados;
+      return (d.rankings && d.rankings[estado.camp]) || d.ranking || [];
+    }
+
+    function prepararCamp() {
+      const cs = estado.dados.campeonatos || [];
+      if (!cs.some(c => String(c.id) === String(estado.camp))) {
+        estado.camp = cs.length ? cs[0].id : "";
+      }
+      const sel = $("seletorCamp");
+      sel.innerHTML = cs.map(c =>
+        `<option value="${textoSeguro(c.id)}">${textoSeguro(c.nome)}</option>`).join("");
+      sel.value = estado.camp;
+      $("barraCamp").classList.toggle("oculto", cs.length < 2);
+      ultimaAtividade = Date.now();
+    }
+
+    $("seletorCamp").addEventListener("change", e => {
+      estado.camp = e.target.value;
+      estado.rodadaDefinida = false;
+      $("filtroRodada").value = "";
+      desenharJogos();
+      desenharRanking();
+    });
+
+    /* ===== Mural ===== */
+    function desenharMural() {
+      $("muralAvisos").innerHTML = (estado.dados.avisos || []).map(a => `
+        <div class="aviso" style="border-left:4px solid var(--verde)">
+          📢 ${textoSeguro(a.texto)}
+          <div class="muted" style="margin-top:6px">${textoSeguro(a.data)}</div>
+        </div>`).join("");
+    }
+
+    /* ===== Temas ===== */
+    const TEMAS = {};
+    `escuro|Padrão escuro|#39d98a|#0b1020|#07160f
+claro|Claro|#16a34a|#f3f6fb|#ffffff
+athletico|Athletico-PR|#e2231a|#120a0a|#ffffff
+atleticomg|Atlético-MG|#f5f5f5|#0b0b0b|#111111
+bahia|Bahia|#2563eb|#0a1020|#ffffff
+botafogo|Botafogo|#f5f5f5|#0b0b0b|#111111
+bragantino|Bragantino|#e31b23|#0f0f12|#ffffff
+chapecoense|Chapecoense|#1faa59|#08140d|#ffffff
+corinthians|Corinthians|#f5f5f5|#0c0c0c|#111111
+coritiba|Coritiba|#22a559|#08140d|#ffffff
+cruzeiro|Cruzeiro|#2f6fed|#0a1020|#ffffff
+flamengo|Flamengo|#e31b23|#140b0c|#ffffff
+fluminense|Fluminense|#9b2247|#12090d|#ffffff
+gremio|Grêmio|#1a8fe3|#08121c|#ffffff
+internacional|Internacional|#e31b23|#150a0b|#ffffff
+mirassol|Mirassol|#f2c500|#14120a|#111111
+palmeiras|Palmeiras|#17a34a|#08140d|#ffffff
+remo|Remo|#3b82f6|#0a1020|#ffffff
+santos|Santos|#f5f5f5|#0b0b0b|#111111
+saopaulo|São Paulo|#e5202e|#140b0c|#ffffff
+vasco|Vasco|#f5f5f5|#0b0b0b|#111111
+vitoria|Vitória|#e31b23|#140b0c|#ffffff`.split("\n").forEach(l => {
+      const [k, n, a, f, o] = l.split("|");
+      TEMAS[k] = { n, a, f, o };
+    });
+
+    const temaLocal = {
+      ler() { try { return localStorage.getItem("bolaoTema") || ""; } catch (e) { return ""; } },
+      salvar(v) { try { localStorage.setItem("bolaoTema", v); } catch (e) {} }
+    };
+
+    function mistura(h1, h2, p) {
+      const c = h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16));
+      const a = c(h1), b = c(h2);
+      return "#" + a.map((x, i) =>
+        Math.round(x + (b[i] - x) * p).toString(16).padStart(2, "0")).join("");
+    }
+
+    function aplicarTema(chave) {
+      if (!TEMAS[chave]) chave = "escuro";
+      const t = TEMAS[chave];
+      const claro = chave === "claro";
+      const r = document.documentElement.style;
+      const painel = claro ? "#ffffff" : mistura(t.f, "#ffffff", .07);
+      const painel2 = claro ? "#eaf0f9" : mistura(t.f, "#ffffff", .13);
+
+      document.documentElement.dataset.tema = chave;
+      r.setProperty("--fundo", t.f);
+      r.setProperty("--painel", painel);
+      r.setProperty("--painel2", painel2);
+      r.setProperty("--texto", claro ? "#10213a" : "#f4f7ff");
+      r.setProperty("--suave", claro ? "#5a6b85" : "#aab6ce");
+      r.setProperty("--borda", claro ? "#cfd9e8" : mistura(t.f, "#ffffff", .2));
+      r.setProperty("--campo", claro ? "#ffffff" : mistura(t.f, "#000000", .25));
+      r.setProperty("--verde", t.a);
+      r.setProperty("--on", t.o);
+      r.setProperty("--topo", claro
+        ? "linear-gradient(130deg,#dfe9f8,#d8f1e4)"
+        : `linear-gradient(130deg, ${painel2}, ${mistura(t.f, t.a, .28)})`);
+      document.querySelector('meta[name="theme-color"]').setAttribute("content", t.f);
+      $("temaSelect").value = chave;
+    }
+
+    $("temaSelect").innerHTML = Object.keys(TEMAS).map(k =>
+      `<option value="${k}">${TEMAS[k].n}</option>`).join("");
+
+    function aplicarTemaUsuario() {
+      const t = estado.dados.meuTema;
+      if (t && TEMAS[t]) { aplicarTema(t); temaLocal.salvar(t); }
+    }
+
+    $("temaSelect").addEventListener("change", async e => {
+      aplicarTema(e.target.value);
+      temaLocal.salvar(e.target.value);
+      try { await chamarServidor("definirTema", estado.token, e.target.value); } catch (x) {}
+    });
+
+    aplicarTema(temaLocal.ler());
+
+    /* ===== Logout por inatividade (10 min) ===== */
+    let ultimoCarregamento = Date.now();
+
+    document.addEventListener("visibilitychange", async () => {
+      if (document.hidden || !estado.token || !estado.dados) return;
+      if (Date.now() - ultimoCarregamento < 60000) return;
+      semOverlay = true;
+      try { await atualizarDadosSemBloqueio(); } catch (e) {}
+      semOverlay = false;
+    });
+
+    /* ===== Contato por WhatsApp ===== */
+    // Número com DDI + DDD, só dígitos. Ex.: 5577999999999
+    const WHATSAPP_NUMERO = "5577981396292";
+    const WHATSAPP_MSG = "Olá! Vim pelo Bolão FC e preciso de ajuda. 🙋";
+    if (/^\d{10,15}$/.test(WHATSAPP_NUMERO)) {
+      $("btnWhats").href = "https://wa.me/" + WHATSAPP_NUMERO +
+        "?text=" + encodeURIComponent(WHATSAPP_MSG);
+      $("btnWhats").classList.remove("oculto");
+    }
+
+    let ultimaAtividade = Date.now();
+    ["click", "keydown", "touchstart", "scroll"].forEach(ev =>
+      document.addEventListener(ev, () => { ultimaAtividade = Date.now(); }, { passive: true }));
+
+    async function sairLocal(msg) {
+      try { await chamarServidor("sair", estado.token); } catch (e) {}
+      guardar.apagar();
+      estado.token = ""; estado.usuario = null; estado.dados = null;
+      alternarLogin(true);
+      fecharCadastro();
+      limparMensagem();
+      if (msg) mostrarMensagem(msg, "");
+    }
+
+    let avisouRascunho = false;
+    setInterval(() => {
+      const parado = Date.now() - ultimaAtividade;
+      if (parado < 60000) avisouRascunho = false;
+      if (estado.token && estado.dados && !avisouRascunho && parado > 8 * 60 * 1000 && sujos().length) {
+        avisouRascunho = true;
+        mostrarMensagem("Você tem palpites não salvos. Toque em “Salvar palpites” antes que a sessão expire.", "");
+      }
+      if (estado.token && Date.now() - ultimaAtividade > 10 * 60 * 1000) {
+        sairLocal("Sessão encerrada após 10 minutos sem uso. Entre novamente.");
+      }
+    }, 15000);
+
+    /* ===== Copiar ranking ===== */
+    $("btnCopiarRanking").addEventListener("click", async () => {
+      const r = estado.rankingAtual || [];
+      if (!r.length) return;
+      const texto = `🏆 ${estado.rankingTitulo}\n\n` + r.map(x =>
+        `${x.posicao}º ${x.nome} — ${x.pontos} pts (${x.exatos} exatos)`).join("\n");
+      try {
+        await navigator.clipboard.writeText(texto);
+        mostrarMensagem("Ranking copiado! É só colar no WhatsApp.", "ok");
+      } catch (e) {
+        prompt("Copie o texto abaixo:", texto);
+      }
+    });
+
+    /* ===== Administração: novas ações ===== */
+    async function alternarPagamento(id, pagou) { await acao("marcarPagamento", id, pagou); }
+    async function reativarUsuario(id) { await acao("reativarUsuario", id); }
+    async function apagarAviso(id) {
+      if (confirm("Apagar este aviso?")) await acao("apagarAviso", id);
+    }
+
+    /* ===== Rodadas e partidas (admin) ===== */
+    const RODADA = { camp: "", rodada: "", editando: "" };
+
+    function cardJogoRodada(j) {
+      const q = quando(j);
+      const enc = j.status === "ENCERRADO";
+      return `<article class="jogo compacto">
+        <div class="jogoTopo"><span>${textoSeguro(q.dia)} · ${textoSeguro(q.hora)}</span>
+          <span class="tag">${enc ? j.golsMandante + " × " + j.golsVisitante : "sem resultado"}</span></div>
+        <div class="confronto">
+          <div class="time">${escudoHtml(j.escudoMandante)}<span class="sigla">${textoSeguro(j.mandanteSigla)}</span></div>
+          <div class="muted">×</div>
+          <div class="time">${escudoHtml(j.escudoVisitante)}<span class="sigla">${textoSeguro(j.visitanteSigla)}</span></div>
+        </div>
+        <div class="botoes"><button type="button" class="secundario pequeno" data-editar="${textoSeguro(j.id)}">Editar</button></div>
+      </article>`;
+    }
+
+    function desenharRodadasAdm() {
+      const d = estado.dados;
+      const camps = d.campeonatos || [];
+      if (!camps.some(c => String(c.id) === String(RODADA.camp))) {
+        RODADA.camp = estado.camp || (camps[0] ? camps[0].id : "");
+        RODADA.rodada = "";
+      }
+      preencherSelect("rodCamp", camps.map(c => ({ value: c.id, texto: c.nome })), "Campeonato");
+      $("rodCamp").value = RODADA.camp;
+
+      const todos = d.jogos.filter(j => String(j.campeonatoId) === String(RODADA.camp));
+      const rods = [...new Set(todos.map(j => Number(j.rodada)))].sort((a, b) => a - b);
+      if (!rods.includes(Number(RODADA.rodada))) {
+        const pend = todos.filter(j => j.status !== "ENCERRADO").map(j => Number(j.rodada)).sort((a, b) => a - b)[0];
+        RODADA.rodada = pend != null ? pend : (rods.length ? rods[rods.length - 1] : "");
+      }
+
+      $("rodChips").innerHTML = rods.length ? rods.map(r => {
+        const feita = todos.filter(j => Number(j.rodada) === r).every(j => j.status === "ENCERRADO");
+        return `<button type="button" class="chip ${r === Number(RODADA.rodada) ? "ativa" : ""}" data-r="${r}">R${r}${feita ? " ✓" : ""}</button>`;
+      }).join("") : '<span class="muted">Nenhuma rodada neste campeonato.</span>';
+
+      const doDia = todos.filter(j => Number(j.rodada) === Number(RODADA.rodada))
+        .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
+      $("rodLista").innerHTML = doDia.map(cardJogoRodada).join("") ||
+        '<div class="vazio">Sem partidas nesta rodada. Use “+ Novo jogo”.</div>';
+
+      $("btnRodApagar").classList.toggle("oculto", !doDia.length);
+      $("btnRodNovo").classList.toggle("oculto", !RODADA.rodada);
+    }
+
+    function abrirEditorJogo(id) {
+      const d = estado.dados;
+      const times = d.times.map(t => ({ value: t.id, texto: t.sigla + " — " + t.nome }));
+      preencherSelect("rodMandante", times, "Mandante");
+      preencherSelect("rodVisitante", times, "Visitante");
+
+      const j = id === "novo" ? null : d.jogos.find(x => String(x.id) === String(id));
+      RODADA.editando = id;
+      const enc = !!(j && j.status === "ENCERRADO");
+
+      $("rodTitulo").textContent = j
+        ? "Editando: " + j.mandanteSigla + " × " + j.visitanteSigla + " · R" + j.rodada
+        : "Novo jogo · R" + RODADA.rodada;
+      $("rodRodada").value = j ? j.rodada : RODADA.rodada;
+      $("rodMandante").value = j ? j.mandanteId : "";
+      $("rodVisitante").value = j ? j.visitanteId : "";
+      dtpDefinir("rodData", j ? String(j.dataHora).slice(0, 16) : "");
+      $("rodGM").value = enc ? j.golsMandante : "";
+      $("rodGV").value = enc ? j.golsVisitante : "";
+
+      $("boxPlacarRod").classList.toggle("oculto", !j);
+      $("btnRodReabrir").classList.toggle("oculto", !enc);
+      $("btnRodExcluir").classList.toggle("oculto", !j);
+      $("formRodada").classList.remove("oculto");
+      $("formRodada").scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+
+    function fecharEditorJogo() {
+      RODADA.editando = "";
+      $("formRodada").classList.add("oculto");
+    }
+
+    $("rodCamp").addEventListener("change", e => {
+      RODADA.camp = e.target.value; RODADA.rodada = ""; fecharEditorJogo();
+      desenharRodadasAdm();
+    });
+    $("rodChips").addEventListener("click", e => {
+      const b = e.target.closest(".chip");
+      if (!b) return;
+      RODADA.rodada = Number(b.dataset.r); fecharEditorJogo();
+      desenharRodadasAdm();
+    });
+    $("rodLista").addEventListener("click", e => {
+      const b = e.target.closest("[data-editar]");
+      if (b) abrirEditorJogo(b.dataset.editar);
+    });
+    $("btnRodNovo").addEventListener("click", () => abrirEditorJogo("novo"));
+    $("btnRodCancelar").addEventListener("click", fecharEditorJogo);
+
+    $("formRodada").addEventListener("submit", async e => {
+      e.preventDefault();
+      const id = RODADA.editando;
+      if (!id) return;
+      const gm = $("rodGM").value, gv = $("rodGV").value;
+      try {
+        if (id === "novo") {
+          await executar("cadastrarJogo", estado.token, $("rodRodada").value,
+            $("rodMandante").value, $("rodVisitante").value, $("rodData").value, RODADA.camp);
+        } else {
+          await executar("editarJogo", estado.token, id, $("rodRodada").value,
+            $("rodMandante").value, $("rodVisitante").value, $("rodData").value, RODADA.camp);
+          if (gm !== "" && gv !== "") {
+            await executar("registrarResultado", estado.token, id, gm, gv);
+          }
+        }
+        fecharEditorJogo();
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Partida salva.", "ok");
+      } catch (erro) {}
+    });
+
+    $("btnRodReabrir").addEventListener("click", async () => {
+      const id = RODADA.editando;
+      if (!id || !confirm("Desfazer o resultado desta partida?")) return;
+      try {
+        await executar("reabrirJogo", estado.token, id);
+        fecharEditorJogo();
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Resultado desfeito.", "ok");
+      } catch (erro) {}
+    });
+
+    $("btnRodExcluir").addEventListener("click", async () => {
+      const id = RODADA.editando;
+      if (!id || !confirm("Excluir esta partida e TODOS os palpites dela? Não dá para desfazer.")) return;
+      try {
+        await executar("excluirJogo", estado.token, id);
+        fecharEditorJogo();
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Partida excluída.", "ok");
+      } catch (erro) {}
+    });
+
+    $("btnRodApagar").addEventListener("click", async () => {
+      const n = estado.dados.jogos.filter(j => String(j.campeonatoId) === String(RODADA.camp) &&
+        Number(j.rodada) === Number(RODADA.rodada)).length;
+      if (!confirm("Apagar a rodada " + RODADA.rodada + " inteira (" + n +
+        " jogos) e todos os palpites deles?\n\nDepois você pode cadastrar o lote de novo.")) return;
+      try {
+        const r = await executar("excluirRodada", estado.token, RODADA.camp, RODADA.rodada);
+        fecharEditorJogo();
+        RODADA.rodada = "";
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Rodada apagada: " + r.jogos + " jogo(s) e " + r.palpitesApagados + " palpite(s).", "ok");
+      } catch (erro) {}
+    });
+
+    $("formCamp").addEventListener("submit", async e => {
+      e.preventDefault();
+      try {
+        await executar("criarCampeonato", estado.token, $("campNome").value);
+        $("formCamp").reset();
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Campeonato criado.", "ok");
+      } catch (erro) {}
+    });
+
+    $("formConfig").addEventListener("submit", async e => {
+      e.preventDefault();
+      try {
+        await executar("salvarConfig", estado.token, $("cfgPrazo").value, $("cfgValor").value);
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Configurações salvas.", "ok");
+      } catch (erro) {}
+    });
+
+    $("formAviso").addEventListener("submit", async e => {
+      e.preventDefault();
+      try {
+        await executar("criarAviso", estado.token, $("avisoTexto").value);
+        $("formAviso").reset();
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Aviso publicado.", "ok");
+      } catch (erro) {}
+    });
+
+    $("formPagLote").addEventListener("submit", async e => {
+      e.preventDefault();
+      try {
+        const r = await executar("marcarPagamentosLote", estado.token, $("pagLoteTexto").value);
+        $("formPagLote").reset();
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem(r.marcados + " pagamento(s) marcado(s)." +
+          (r.naoEncontrados.length ? "\nNomes não encontrados: " + r.naoEncontrados.join(", ") : ""),
+          r.naoEncontrados.length ? "" : "ok");
+      } catch (erro) {}
+    });
+
+
+
+    /* ===== Resultados: campeonato > rodada > partida > placar ===== */
+    const norm = t => String(t || "").normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+    function desenharResultados() {
+      const d = estado.dados;
+      const R = estado.res;
+      const camps = d.campeonatos || [];
+
+      if (!camps.some(c => String(c.id) === String(R.camp))) {
+        R.camp = estado.camp || (camps[0] ? camps[0].id : "");
+        R.rodada = ""; R.jogoId = ""; R.chave = "";
+      }
+      $("resCamp").innerHTML = camps.map(c =>
+        `<option value="${textoSeguro(c.id)}">${textoSeguro(c.nome)}</option>`).join("");
+      $("resCamp").value = R.camp;
+      $("resCampBox").classList.toggle("oculto", camps.length < 2);
+
+      const jogosC = d.jogos.filter(j => String(j.campeonatoId) === String(R.camp));
+      const rodadas = [...new Set(jogosC.map(j => j.rodada))].sort((a, b) => a - b);
+
+      if (!rodadas.length) {
+        $("resRodadas").innerHTML = "";
+        $("resPartidas").innerHTML = '<div class="vazio">Nenhuma partida neste campeonato.</div>';
+        $("formResultado").classList.add("oculto");
+        return;
+      }
+
+      // rodada padrão: a primeira que ainda tem jogo sem resultado
+      if (!rodadas.includes(Number(R.rodada))) {
+        const pend = jogosC.filter(j => j.status !== "ENCERRADO")
+          .map(j => j.rodada).sort((a, b) => a - b)[0];
+        R.rodada = pend != null ? pend : rodadas[rodadas.length - 1];
+        R.jogoId = ""; R.chave = "";
+      }
+
+      $("resRodadas").innerHTML = rodadas.map(r => {
+        const todos = jogosC.filter(j => j.rodada === r);
+        const feita = todos.every(j => j.status === "ENCERRADO");
+        return `<button type="button" class="chip ${r === Number(R.rodada) ? "ativa" : ""}"
+          data-r="${r}">Rodada ${r}${feita ? " ✓" : ""}</button>`;
+      }).join("");
+      const ativo = $("resRodadas").querySelector(".ativa");
+      if (ativo) $("resRodadas").scrollLeft = ativo.offsetLeft - $("resRodadas").clientWidth / 2 + ativo.clientWidth / 2;
+
+      const doDia = jogosC.filter(j => j.rodada === Number(R.rodada))
+        .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
+
+      // partida padrão: a primeira sem resultado
+      if (!doDia.some(j => String(j.id) === String(R.jogoId))) {
+        const prox = doDia.find(j => j.status !== "ENCERRADO");
+        R.jogoId = prox ? prox.id : "";
+        R.chave = "";
+      }
+
+      $("resPartidas").innerHTML = doDia.map(j => {
+        const q = quando(j);
+        const enc = j.status === "ENCERRADO";
+        return `<button type="button" class="partida ${String(j.id) === String(R.jogoId) ? "sel" : ""}" data-j="${j.id}">
+          <span><strong>${textoSeguro(j.mandanteSigla)} × ${textoSeguro(j.visitanteSigla)}</strong>
+            <div class="muted">${textoSeguro(q.dia)} · ${textoSeguro(q.hora)}</div></span>
+          ${enc ? `<span class="ok">${j.golsMandante} × ${j.golsVisitante} ✓</span>`
+                : '<span class="muted">sem resultado</span>'}
+        </button>`;
+      }).join("");
+
+      const sel = doDia.find(j => String(j.id) === String(R.jogoId));
+      $("formResultado").classList.toggle("oculto", !sel);
+      if (!sel) return;
+
+      const enc = sel.status === "ENCERRADO";
+      const q = quando(sel);
+      $("resTitulo").textContent = `Rodada ${sel.rodada} · ${sel.mandante} × ${sel.visitante} · ${q.dia} ${q.hora}`;
+      $("resNomeM").textContent = sel.mandanteSigla;
+      $("resNomeV").textContent = sel.visitanteSigla;
+      $("btnSalvarRes").textContent = enc ? "Corrigir resultado" : "Salvar resultado";
+      $("btnReabrirRes").classList.toggle("oculto", !enc);
+
+      // só preenche os campos quando muda a partida/resultado (não apaga o que está sendo digitado)
+      const chave = [sel.id, sel.status, sel.golsMandante, sel.golsVisitante].join("|");
+      if (R.chave !== chave) {
+        R.chave = chave;
+        $("resultadoMandante").value = enc ? sel.golsMandante : "";
+        $("resultadoVisitante").value = enc ? sel.golsVisitante : "";
+      }
+    }
+
+    $("resCamp").addEventListener("change", e => {
+      estado.res = { camp: e.target.value, rodada: "", jogoId: "", chave: "" };
+      desenharResultados();
+    });
+    $("resRodadas").addEventListener("click", e => {
+      const b = e.target.closest(".chip");
+      if (!b) return;
+      estado.res.rodada = Number(b.dataset.r);
+      estado.res.jogoId = ""; estado.res.chave = "";
+      desenharResultados();
+    });
+    $("resPartidas").addEventListener("click", e => {
+      const b = e.target.closest(".partida");
+      if (!b) return;
+      estado.res.jogoId = b.dataset.j; estado.res.chave = "";
+      desenharResultados();
+      $("resultadoMandante").focus();
+    });
+
+    $("formResultado").addEventListener("submit", async e => {
+      e.preventDefault();
+      const j = estado.dados.jogos.find(x => String(x.id) === String(estado.res.jogoId));
+      if (!j) return;
+      if (new Date() < new Date(j.dataHora) &&
+          !confirm("Esse jogo ainda não começou. Lançar o resultado mesmo assim?")) return;
+
+      const gm = $("resultadoMandante").value, gv = $("resultadoVisitante").value;
+      try {
+        await executar("registrarResultado", estado.token, j.id, gm, gv);
+        await atualizarDadosSemBloqueio();
+
+        // passa direto para a próxima partida da rodada que ainda não tem resultado
+        const proxima = estado.dados.jogos
+          .filter(x => String(x.campeonatoId) === String(estado.res.camp) &&
+            x.rodada === j.rodada && x.status !== "ENCERRADO")
+          .sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora))[0];
+        estado.res.jogoId = proxima ? proxima.id : "";
+        estado.res.chave = "";
+        desenharResultados();
+
+        mostrarMensagem(`${j.mandanteSigla} ${gm} × ${gv} ${j.visitanteSigla} salvo` +
+          (proxima ? "" : " · rodada completa") + ".", "ok");
+        if (proxima) $("resultadoMandante").focus();
+      } catch (erro) {}
+    });
+
+    $("btnReabrirRes").addEventListener("click", async () => {
+      const id = estado.res.jogoId;
+      if (!id) return;
+      if (!confirm("Desfazer o resultado e reabrir esta partida?")) return;
+      try {
+        await executar("reabrirJogo", estado.token, id);
+        estado.res.chave = "";
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem("Partida reaberta.", "ok");
+      } catch (erro) {}
+    });
+
+    /* ===== Palpites registrados (admin): participante > campeonato > rodada ===== */
+    function rodadaAtualAdmin() {
+      const js = estado.dados.jogos.filter(j => String(j.campeonatoId) === String(estado.camp));
+      const pend = js.filter(j => j.status !== "ENCERRADO").map(j => j.rodada).sort((a, b) => a - b)[0];
+      if (pend != null) return pend;
+      const todas = js.map(j => j.rodada).sort((a, b) => a - b);
+      return todas.length ? todas[todas.length - 1] : "";
+    }
+
+    function desenharPalpitesAdmin() {
+      const d = estado.dados;
+      if (!estado.hist) estado.hist = { u: "", camp: "", rod: "", inicRod: false };
+      const H = estado.hist;
+      const camps = d.campeonatos || [];
+      if (!camps.some(c => String(c.id) === String(H.camp))) {
+        H.camp = estado.camp || (camps[0] ? camps[0].id : "");
+        H.inicRod = false;
+      }
+
+      const parts = (d.usuarios || []).filter(u => u.perfil !== "ADMIN")
+        .slice().sort((a, b) => a.nome.localeCompare(b.nome));
+      $("histUsuario").innerHTML = '<option value="">Escolha o participante</option>' +
+        parts.map(u => `<option value="${textoSeguro(u.id)}">${textoSeguro(u.nome)}${u.ativo ? "" : " (desativado)"}</option>`).join("");
+      $("histUsuario").value = H.u;
+
+      $("histCamp").innerHTML = camps.map(c =>
+        `<option value="${textoSeguro(c.id)}">${textoSeguro(c.nome)}</option>`).join("");
+      $("histCamp").value = H.camp;
+
+      const rods = [...new Set((d.jogos || [])
+        .filter(j => String(j.campeonatoId) === String(H.camp)).map(j => j.rodada))]
+        .sort((a, b) => a - b);
+      if (!H.inicRod) {
+        H.inicRod = true;
+        const ra = rodadaAtualAdmin();
+        H.rod = rods.includes(Number(ra)) ? String(ra) : "";
+      }
+      if (H.rod && !rods.includes(Number(H.rod))) H.rod = "";
+      $("histRodada").innerHTML = '<option value="">Todas as rodadas</option>' +
+        rods.map(r => `<option value="${r}">Rodada ${r}</option>`).join("");
+      $("histRodada").value = H.rod;
+
+      const box = $("listaPalpitesAdmin");
+      if (!H.u) {
+        box.innerHTML = '<div class="vazio">Escolha um participante para ver os palpites.</div>';
+        return;
+      }
+
+      const itens = (d.palpitesAdmin || []).filter(p =>
+        String(p.usuarioId) === String(H.u) &&
+        String(p.campeonatoId) === String(H.camp) &&
+        (!H.rod || String(p.rodada) === String(H.rod)))
+        .sort((a, b) => a.rodada - b.rodada || a.jogo.localeCompare(b.jogo));
+
+      if (!itens.length) {
+        box.innerHTML = '<div class="vazio">Nenhum palpite nesse filtro.</div>';
+        return;
+      }
+
+      const total = itens.reduce((t, p) => t + (p.pts || 0), 0);
+      const temPts = itens.some(p => p.pts != null);
+      let html = `<div class="muted" style="margin:6px 0">${itens.length} palpite(s)` +
+        (temPts ? " · " + total + " pts" : "") + "</div>";
+      let rodAnt = null;
+      itens.forEach(p => {
+        if (!H.rod && p.rodada !== rodAnt) {
+          html += `<div class="rodTit">Rodada ${p.rodada}</div>`;
+          rodAnt = p.rodada;
+        }
+        html += `<div class="linha" style="padding:8px 0">
+          <span>${textoSeguro(p.jogo)}</span>
+          <span><strong>${p.gm} × ${p.gv}</strong>${p.pts != null
+            ? ` <span class="muted">· ${p.pts} pt${p.pts === 1 ? "" : "s"}</span>` : ""}</span>
+        </div>`;
+      });
+      box.innerHTML = html;
+    }
+
+    $("btnVerPalpites").addEventListener("click", () => {
+      const oculto = $("boxVerPalpites").classList.toggle("oculto");
+      if (!oculto) desenharPalpitesAdmin();
+    });
+    $("histUsuario").addEventListener("change", e => {
+      estado.hist.u = e.target.value; desenharPalpitesAdmin();
+    });
+    $("histCamp").addEventListener("change", e => {
+      estado.hist.camp = e.target.value; estado.hist.inicRod = false; estado.hist.rod = "";
+      desenharPalpitesAdmin();
+    });
+    $("histRodada").addEventListener("change", e => {
+      estado.hist.rod = e.target.value; desenharPalpitesAdmin();
+    });
+
+    /* ===== Modo print do ranking ===== */
+    /* ===== Registro de entradas (admin) ===== */
+    async function atualizarAcessos() {
+      try {
+        const r = await chamarServidor("listarAcessos", estado.token);
+        desenharAcessos(r);
+      } catch (e) { /* silencioso: o indicador só fica sem número */ }
+    }
+
+    function desenharAcessos(r) {
+      r = { total: r.total || 0, porNome: r.porNome || [] };
+      $("btnStatusAcessos").textContent = "👁 Acessos: " + r.total;
+      $("resumoAcessos").textContent = r.total + " entrada(s) · " +
+        r.porNome.length + " participante(s). Toque no nome para ver por mês.";
+      $("porNomeAcessos").innerHTML = r.porNome.length
+        ? r.porNome.map(p => `<details class="bloco">
+            <summary><span>${textoSeguro(p.nome)}</span>
+              <span class="muted">${p.entradas}x - última ${textoSeguro(formatarDataAcesso(p.ultima))}</span></summary>
+            <div class="corpo">${p.meses.map(m => `<details class="bloco" style="margin:6px 0">
+                <summary><span>${textoSeguro(m.rotulo)}</span>
+                  <span class="muted">${m.total} entrada(s)</span></summary>
+                <div class="corpo">${m.datas.map(d =>
+                  `<div class="linha" style="padding:5px 0"><span class="muted">${textoSeguro(formatarDataAcesso(d))}</span></div>`
+                ).join("")}</div>
+              </details>`).join("")}</div>
+          </details>`).join("")
+        : '<div class="vazio">Nenhum acesso registrado ainda.</div>';
+    }
+
+    $("btnStatusAcessos").addEventListener("click", () => {
+      $("modalAcessos").classList.remove("oculto");
+      atualizarAcessos();
+    });
+    $("btnFecharAcessos").addEventListener("click", () => {
+      $("modalAcessos").classList.add("oculto");
+    });
+    $("modalAcessos").addEventListener("click", e => {
+      if (e.target === $("modalAcessos")) $("modalAcessos").classList.add("oculto");
+    });
+
+    let imgPrint = null;
+
+    function carregarHtml2canvas() {
+      if (window.html2canvas) return Promise.resolve();
+      return new Promise((ok, no) => {
+        const sc = document.createElement("script");
+        sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        sc.onload = ok;
+        sc.onerror = () => no(new Error("gerador"));
+        document.head.appendChild(sc);
+      });
+    }
+
+    async function gerarImagemPrint() {
+      await carregarHtml2canvas();
+      const el = $("painelRanking");
+      const bg = getComputedStyle(el).backgroundColor || "#ffffff";
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: bg });
+      return new Promise(r => canvas.toBlob(r, "image/png"));
+    }
+
+    // Abre direto na tela de print e já prepara a imagem do ranking.
+    $("btnModoPrint").addEventListener("click", async () => {
+      window.scrollTo(0, 0);
+      imgPrint = null;
+      document.body.classList.add("modoPrint");
+      const bComp = $("btnCompartilharPrint"), bBaixar = $("btnBaixarPrint");
+      bComp.disabled = true; bBaixar.disabled = true;
+      bComp.textContent = "Preparando imagem...";
+      try {
+        imgPrint = await gerarImagemPrint();
+        bComp.textContent = "📤 Compartilhar";
+        bComp.disabled = false; bBaixar.disabled = false;
+      } catch (erro) {
+        bComp.textContent = "Imagem indisponível";
+        mostrarMensagem("Não consegui gerar a imagem. Verifique a internet e tente de novo.", "erro");
+      }
+    });
+
+    $("btnCompartilharPrint").addEventListener("click", async () => {
+      if (!imgPrint) return;
+      const arquivo = new File([imgPrint], "ranking-bolao.png", { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+        try {
+          await navigator.share({ files: [arquivo], title: "Ranking Bolão FC" });
+          return;
+        } catch (e) { return; }   // usuário cancelou
+      }
+      baixarImagemPrint();
+    });
+
+    function baixarImagemPrint() {
+      if (!imgPrint) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(imgPrint);
+      a.download = "ranking-bolao.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    $("btnBaixarPrint").addEventListener("click", baixarImagemPrint);
+
+    $("btnSairPrint").addEventListener("click", () => {
+      document.body.classList.remove("modoPrint");
+      imgPrint = null;
+    });
+
+    /* ===== Excluir participante (conta já desativada) ===== */
+    $("listaUsuarios").addEventListener("click", async e => {
+      const b = e.target.closest('[data-acao="excluir"]');
+      if (!b) return;
+      const u = (estado.dados.usuarios || []).find(x => String(x.id) === String(b.dataset.id));
+      if (!u) return;
+      const digitado = prompt(
+        "EXCLUIR " + u.nome + " de vez?\n" +
+        "A conta e TODOS os palpites dela serão apagados. Não dá para desfazer.\n\n" +
+        "Para confirmar, digite o nome exatamente:");
+      if (digitado === null) return;
+      if (norm(digitado) !== norm(u.nome)) {
+        mostrarMensagem("O nome digitado não confere. Nada foi excluído.", "erro");
+        return;
+      }
+      try {
+        const r = await executar("excluirUsuario", estado.token, u.id);
+        await atualizarDadosSemBloqueio();
+        mostrarMensagem(u.nome + " excluído (" + (r.palpitesApagados || 0) + " palpite(s) apagado(s)).", "ok");
+      } catch (erro) {}
+    });
+
+    /* ===== Link de convite (admin) ===== */
+    function urlConvite(cod) {
+      return location.origin + location.pathname + "?c=" + encodeURIComponent(cod);
+    }
+
+    $("btnCopiarConvite").addEventListener("click", async () => {
+      const t = $("linkConvite").value;
+      try {
+        await navigator.clipboard.writeText(t);
+        mostrarMensagem("Link de convite copiado.", "ok");
+      } catch (e) {
+        prompt("Copie o link abaixo:", t);
+      }
+    });
+
+    $("btnConviteZap").addEventListener("click", () => {
+      const cod = estado.dados && estado.dados.config && estado.dados.config.convite;
+      if (!cod) return;
+      const msg = "⚽ Bolão FC — Brasileirão 2026\nEntre pelo link e crie sua conta:\n" + urlConvite(cod);
+      window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank");
+    });
+
+    /* ===== Horário do jogo e chips de rodada ===== */
+    function quando(j) {
+      try {
+        const d = new Date(j.dataHora);
+        const f = o => new Intl.DateTimeFormat("pt-BR",
+          Object.assign({ timeZone: "America/Sao_Paulo" }, o)).format(d);
+        return {
+          dia: f({ weekday: "short", day: "2-digit", month: "2-digit" }).replace(/\./g, ""),
+          hora: f({ hour: "2-digit", minute: "2-digit", hour12: false })
+        };
+      } catch (e) {
+        return { dia: j.dataExibicao, hora: "" };
+      }
+    }
+
+    function desenharChipsRodada(rodadas) {
+      const atual = $("filtroRodada").value;
+      const box = $("chipsRodada");
+      box.innerHTML = `<button class="chip ${atual === "" ? "ativa" : ""}" data-r="">Todas</button>` +
+        rodadas.map(r =>
+          `<button class="chip ${String(r) === atual ? "ativa" : ""}" data-r="${r}">Rodada ${r}</button>`
+        ).join("");
+      const ativo = box.querySelector(".ativa");
+      if (ativo) box.scrollLeft = ativo.offsetLeft - box.clientWidth / 2 + ativo.clientWidth / 2;
+    }
+
+    $("chipsRodada").addEventListener("click", e => {
+      const b = e.target.closest(".chip");
+      if (!b) return;
+      $("filtroRodada").value = b.dataset.r;
+      desenharJogos();
+    });
+
+    /* ===== Seletor digital de data e hora ===== */
+    const DIAS_CURTOS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const dtp = {};
+
+    function dtpDesenhar(alvo) {
+      const st = dtp[alvo], el = st.el;
+      el.querySelectorAll("[data-d]").forEach(b => b.classList.toggle("ativa", b.dataset.d === st.d));
+      el.querySelectorAll("[data-t]").forEach(b => b.classList.toggle("ativa", b.dataset.t === st.t));
+      el.querySelector('[data-r="data"]').value = st.d;
+      el.querySelector('[data-r="hora"]').value = st.t;
+      $(alvo).value = st.d && st.t ? st.d + "T" + st.t : "";
+      el.querySelector(".dtpResumo").textContent = st.d && st.t
+        ? "✅ " + st.d.split("-").reverse().join("/") + " às " + st.t
+        : "Escolha o dia e o horário";
+    }
+
+    function dtpDefinir(alvo, valor) {
+      const st = dtp[alvo];
+      if (!st) return;
+      const m = String(valor || "").match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+      st.d = m ? m[1] : "";
+      st.t = m ? m[2] : "";
+      dtpDesenhar(alvo);
+    }
+
+    function montarDtp(el) {
+      const alvo = el.dataset.alvo;
+      const hoje = new Date();
+      const dias = Array.from({ length: 10 }, (_, i) => {
+        const x = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + i);
+        const dd = String(x.getDate()).padStart(2, "0");
+        const mm = String(x.getMonth() + 1).padStart(2, "0");
+        return {
+          v: `${x.getFullYear()}-${mm}-${dd}`,
+          r: i === 0 ? "Hoje" : i === 1 ? "Amanhã" : `${DIAS_CURTOS[x.getDay()]} ${dd}/${mm}`
+        };
+      });
+      const horas = ["11:00", "13:00", "15:00", "16:00", "17:00", "18:30", "19:00", "20:00", "21:30"];
+
+      el.innerHTML = `
+        <div class="muted">Dia</div>
+        <div class="chips">${dias.map(d =>
+          `<button type="button" class="chip" data-d="${d.v}">${d.r}</button>`).join("")}</div>
+        <input type="date" data-r="data" style="margin:0 0 12px">
+        <div class="muted">Horário</div>
+        <div class="chips">${horas.map(h =>
+          `<button type="button" class="chip" data-t="${h}">${h}</button>`).join("")}</div>
+        <input type="time" data-r="hora" style="margin:0">
+        <div class="dtpResumo aviso" style="margin:12px 0 0"></div>`;
+
+      dtp[alvo] = { el, d: "", t: "" };
+
+      el.addEventListener("click", e => {
+        const b = e.target.closest(".chip");
+        if (!b) return;
+        if (b.dataset.d) dtp[alvo].d = b.dataset.d;
+        if (b.dataset.t) dtp[alvo].t = b.dataset.t;
+        dtpDesenhar(alvo);
+      });
+      el.addEventListener("input", e => {
+        const r = e.target.dataset.r;
+        if (r === "data") dtp[alvo].d = e.target.value;
+        if (r === "hora") dtp[alvo].t = e.target.value;
+        dtpDesenhar(alvo);
+      });
+
+      const form = $(alvo).closest("form");
+      if (form) form.addEventListener("reset", () => setTimeout(() => dtpDefinir(alvo, ""), 0));
+      dtpDesenhar(alvo);
+    }
+
+    document.querySelectorAll(".dtp").forEach(montarDtp);
+
+    /* ===== Administração em menu ===== */
+    const ADM_GRUPOS = {
+      "Adicionar time": "times", "Editar time": "times",
+      "Cadastrar jogo": "jogos", "Cadastrar jogos em lote": "jogos",
+      "Rodadas e partidas": "jogos", "Editar ou excluir partida": "jogos",
+      "Registrar resultado": "resultados",
+      "Participantes": "participantes", "Quem ainda não palpitou": "participantes",
+      "Palpites registrados": "participantes",
+      "Pagamentos": "pagamentos", "Mural de avisos": "avisos",
+      "Campeonatos e configurações": "config"
+    };
+    const ADM_TITULOS = {
+      jogos: "⚽ Jogos", resultados: "🏁 Resultados", times: "🛡️ Times",
+      participantes: "👥 Participantes", pagamentos: "💰 Pagamentos",
+      avisos: "📢 Avisos", config: "⚙️ Configurações"
+    };
+
+    function abrirAdm(g) {
+      document.querySelectorAll("#painelAdmin .card").forEach(c => {
+        const h3 = c.querySelector("h3");
+        const grupo = h3 ? (ADM_GRUPOS[h3.textContent.trim()] || "x") : "intro";
+        c.classList.toggle("oculto", grupo === "intro" ? !!g : grupo !== g);
+      });
+      $("admMenu").classList.toggle("oculto", !!g);
+      $("admVoltar").classList.toggle("oculto", !g);
+      $("admTitulo").textContent = g ? ADM_TITULOS[g] : "";
+      window.scrollTo({ top: 0 });
+    }
+
+    document.querySelectorAll("#admMenu .tile").forEach(b =>
+      b.addEventListener("click", () => abrirAdm(b.dataset.adm)));
+    $("btnAdmVoltar").addEventListener("click", () => abrirAdm(""));
+    abrirAdm("");
+
+    (async function iniciar() {
+      if (estado.token) {
+        await carregar();
+      } else {
+        alternarLogin(true);
+        if (CONVITE_URL) abrirCadastro();
+      }
+    })();
+  </script>
+  <footer id="versaoApp" class="muted" style="text-align:center;font-size:12px;padding:18px 0 28px">V7 · 18/11/26</footer>
 </body>
 </html>
