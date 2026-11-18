@@ -2539,6 +2539,32 @@ vitoria|Vitória|#e31b23|#140b0c|#ffffff`.split("\n").forEach(l => {
       } catch (e) { /* silencioso: o indicador só fica sem número */ }
     }
 
+    // "18/11/2026 05:21" -> "qua 18/11 · 05:21"
+    function formatarDataAcesso(txt) {
+      const m = String(txt || "").match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}:\d{2})$/);
+      if (!m) return String(txt || "");
+      const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+      const dia = d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(/\./g, "");
+      return dia + " " + m[1] + "/" + m[2] + " · " + m[4];
+    }
+
+    const MESES_TELA = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+    // Aceita o formato novo (meses) e o antigo (lista de datas).
+    function mesesDoAcesso(p) {
+      if (Array.isArray(p.meses)) return p.meses;
+      const g = {};
+      (p.datas || []).forEach(d => {
+        const mm = String(d).slice(3, 5), yyyy = String(d).slice(6, 10);
+        const k = yyyy + "-" + mm;
+        if (!g[k]) g[k] = { rotulo: (MESES_TELA[Number(mm) - 1] || mm) + " de " + yyyy, datas: [] };
+        g[k].datas.push(d);
+      });
+      return Object.keys(g).sort().reverse().map(k => ({
+        rotulo: g[k].rotulo, total: g[k].datas.length, datas: g[k].datas
+      }));
+    }
+
     function desenharAcessos(r) {
       r = { total: r.total || 0, porNome: r.porNome || [] };
       $("btnStatusAcessos").textContent = "👁 Acessos: " + r.total;
@@ -2548,7 +2574,7 @@ vitoria|Vitória|#e31b23|#140b0c|#ffffff`.split("\n").forEach(l => {
         ? r.porNome.map(p => `<details class="bloco">
             <summary><span>${textoSeguro(p.nome)}</span>
               <span class="muted">${p.entradas}x - última ${textoSeguro(formatarDataAcesso(p.ultima))}</span></summary>
-            <div class="corpo">${p.meses.map(m => `<details class="bloco" style="margin:6px 0">
+            <div class="corpo">${mesesDoAcesso(p).map(m => `<details class="bloco" style="margin:6px 0">
                 <summary><span>${textoSeguro(m.rotulo)}</span>
                   <span class="muted">${m.total} entrada(s)</span></summary>
                 <div class="corpo">${m.datas.map(d =>
@@ -2831,6 +2857,6 @@ vitoria|Vitória|#e31b23|#140b0c|#ffffff`.split("\n").forEach(l => {
       }
     })();
   </script>
-  <footer id="versaoApp" class="muted" style="text-align:center;font-size:12px;padding:18px 0 28px">V7 · 18/11/26</footer>
+  <footer id="versaoApp" class="muted" style="text-align:center;font-size:12px;padding:18px 0 28px">V8 · 18/11/26</footer>
 </body>
 </html>
