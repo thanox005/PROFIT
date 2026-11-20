@@ -144,6 +144,6 @@
     if (s) s.addEventListener('click', bloquearSeNecessario, true);
   }
 
-  window.PROFIT_ESTIMATIVA = { avaliar: avaliar };
+  window.PROFIT_ESTIMATIVA = { avaliar: avaliar, verificar: verificar };
   setTimeout(iniciar, 250);
 })();

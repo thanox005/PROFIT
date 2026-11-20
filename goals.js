@@ -19,7 +19,9 @@
   function salvarPerfilDados(){
     const sexo=$("perfilSexo")?.value||"", idade=Number($("perfilIdade")?.value||0), altura=Number($("perfilAltura")?.value||0), peso=Number($("perfilPesoAtual")?.value||0), pesoMeta=Number($("perfilPesoMeta")?.value||0), objetivo=$("perfilObjetivo")?.value||"manter";
     if(!sexo||!idade||!altura||!peso){toast("Preencha sexo, idade, altura e peso atual.");return;}
-    profile=Object.assign({},profile,{sexo,idade,altura,peso,pesoMeta,objetivo,pesoInicial:Number(profile.pesoInicial||peso)});
+    /* Relê o perfil salvo antes de gravar: senão apaga kcal, proteína etc. da recomendação. */
+    let atual={}; try{atual=JSON.parse(localStorage.getItem(KEY)||"{}");}catch(e){atual={};}
+    profile=Object.assign({},atual,{sexo,idade,altura,peso,pesoMeta,objetivo,pesoInicial:Number(atual.pesoInicial||peso)});
     try{localStorage.setItem(KEY,JSON.stringify(profile));}catch(e){}
     // Mantém a recomendação sincronizada com os dados do perfil.
     ["nutSexo","nutIdade","nutAltura","nutPeso","nutObjetivo"].forEach((id,i)=>{if($(id))$(id).value=[sexo,idade,altura,peso,objetivo][i];});
