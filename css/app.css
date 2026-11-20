@@ -1351,3 +1351,8 @@ body.light,html.light,html[data-theme="light"],body[data-theme="light"]{--header
 .brand p{color:var(--header-sub)}
 .theme-btn{background:rgba(255,255,255,.12);color:var(--header-text);border:1px solid rgba(255,255,255,.12)}
 body.light .theme-btn,html.light .theme-btn,html[data-theme="light"] .theme-btn{background:rgba(15,23,42,.06);border-color:rgba(15,23,42,.12)}
+
+/* PROFIT 3.0 — nível de atividade + salvar lado a lado */
+.atividade-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-top:6px}
+.atividade-row .btn{width:auto;margin-top:0;padding:10px 12px;white-space:nowrap}
+.atividade-row .input{margin-top:4px}
